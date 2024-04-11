@@ -3,18 +3,6 @@ const tf = require('@tensorflow/tfjs-node');
 
 const fs = require("fs");
 const modelPath = '/Users/mma/git/tf-ai/model';
-const docs = ['Well done!',
-    'Good work',
-    'Great effort',
-    'nice work',
-    'Excellent!',
-    'Weak',
-    'Poor effort!',
-    'not good',
-    'poor work',
-    'Could have done better.']
-const labels = [1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
-const encodedDocs = docs.map(d => tf.oneHot(docs.indexOf(d), docs.length).dataSync());
 
 const index = (async (req, res) => {
     console.log("Load an existing model");
