@@ -18,7 +18,7 @@
 
             const surface = document.getElementById('demo');
             const series = ['x', 'y'];
-            $.get("/embedding",
+            $.get("/",
                 function (res, status) {
                     const data = { values: res, series }
                     tfvis.render.scatterplot(surface, data);

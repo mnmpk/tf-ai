@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>TFAI</title>
+</head>
+
+<body>
+    <form id="form" onsubmit="return s()">
+        <input type="text" name="text" maxlength="100" />
+        <button type="submit" id="submit">Submit</button>
+    </form>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function () {
+        });
+        function s() {
+            $.ajax({
+                type: "POST",
+                url: "/predict",
+                data: $("#form").serialize(),
+                success: function (msg) {
+                    alert("predict value: " + msg[0]);
+                }
+            });
+            return false;
+        };
+    </script>
+</body>
+
+</html>

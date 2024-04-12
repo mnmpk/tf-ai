@@ -1,10 +1,13 @@
 
 const tf = require('@tensorflow/tfjs-node');
-
 const fs = require("fs");
 const modelPath = '/Users/mma/git/tf-ai/embedding';
 
-const docs = ['Well done!',
+const maxLen = 50;
+const vocabulary = ['', 'well', 'done', 'good', 'work', 'great', 'effort', 'nice', 'work', 'excellent', 'weak', 'bad', 'poor', 'effort', 'not', 'work', 'could', 'have', 'done', 'better'];
+const docs = ['',
+    //'well', 'done', 'good', 'work', 'great', 'nice', 'excellent',
+    'Well done!',
     'Good work',
     'Great effort',
     'nice work',
@@ -13,23 +16,27 @@ const docs = ['Well done!',
     'Poor effort!',
     'not good',
     'poor work',
-    'Could have done better.']
-const labels = [1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
-//TODO: convert text to embedding
-const test = [[6, 2, 0, 0],
-[3, 1, 0, 0],
-[7, 4, 0, 0],
-[8, 1, 0, 0],
-[9, 0, 0, 0],
-[10, 0, 0, 0],
-[5, 4, 0, 0],
-[11, 3, 0, 0],
-[5, 1, 0, 0],
-[12, 13, 2, 14]];
+    'Could have done better.',
+    //'bad', 'weak', 'poor', 'not'
+]
+const labels = [0.5, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+//const labels = [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-const encodedDocs = tf.oneHot(tf.tensor1d(docs, 'int32'), docs.length).dataSync();
+function padEnd(array, minLength, fillValue = undefined) {
+    return Object.assign(new Array(minLength).fill(fillValue), array);
+}
+function embed(d) {
+    const v = padEnd(d.split(" ").map(v => {
+        const i = vocabulary.indexOf(v.replace(/[^a-zA-Z ]/g, "").toLowerCase());
+        return i >= 0 ? i : 0;
+    }), maxLen, 0);
+    console.log(v);
+    return v;
+}
+const encodedDocs = docs.map(d => embed(d));
+//console.log(encodedDocs);
 
-const embedding = (async (req, res) => {
+const predict = (async (req, res) => {
     console.log("Load an existing model");
     let model = await load();
     if (!model) {
@@ -37,19 +44,19 @@ const embedding = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        const result = await getResult(model);
+        console.log(req.body);
+        const result = await getResult(req.body.text, model);
         console.log("predit result", result);
         res.send(result);
     }
 })
 
 async function train() {
-
     const model = tf.sequential();
     model.add(tf.layers.embedding({
-        inputDim: 100,//vocabularySize,
+        inputDim: vocabulary.length,//vocabularySize,
         outputDim: 8,//embeddingSize,
-        inputLength: 4,//maxLen
+        inputLength: maxLen,//maxLen
     }));
     model.add(tf.layers.flatten());
     model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
@@ -61,7 +68,7 @@ async function train() {
     model.summary();
 
     // Train the model.
-    await model.fit(tf.tensor2d(test), tf.tensor1d(labels), {
+    await model.fit(tf.tensor2d(encodedDocs), tf.tensor1d(labels), {
         epochs: 500,
         callbacks: {
             //onEpochEnd: (epoch, log) => console.log(`Epoch ${epoch}: loss = ${log.loss}`)
@@ -70,22 +77,16 @@ async function train() {
 
     console.log('Evaluating model...');
     const [testLoss, testAcc] =
-        await model.evaluate(tf.tensor2d(test), tf.tensor1d(labels), { batchSize: 100 });
+        await model.evaluate(tf.tensor2d(encodedDocs), tf.tensor1d(labels), { batchSize: 100 });
     console.log(`Evaluation loss: ${(await testLoss.data())[0].toFixed(4)}`);
     console.log(`Evaluation accuracy: ${(await testAcc.data())[0].toFixed(4)}`);
 
     await model.save('file://' + modelPath);
     return model;
 }
-async function getResult(model) {
-    const arr = [];
-    for (let x = 0; x < 10; x++) {
-        arr.push({ x: test[x] });
-        let result = await model.predict(tf.tensor([test[x]]));
-        console.log(result);
-        arr[x].y = Number(await result.data());
-    }
-    return arr;
+async function getResult(input, model) {
+    let result = await model.predict(tf.tensor([embed(input)]));
+    return await result.data();
 }
 async function load() {
     if (fs.existsSync(modelPath + '/model.json')) {
@@ -94,5 +95,5 @@ async function load() {
     return null;
 }
 module.exports = {
-    embedding
+    predict
 }
