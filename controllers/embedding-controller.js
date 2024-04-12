@@ -6,7 +6,7 @@ const modelPath = '/Users/mma/git/tf-ai/embedding';
 const maxLen = 50;
 const vocabulary = ['', 'well', 'done', 'good', 'work', 'great', 'effort', 'nice', 'work', 'excellent', 'weak', 'bad', 'poor', 'effort', 'not', 'work', 'could', 'have', 'done', 'better'];
 const docs = ['',
-    //'well', 'done', 'good', 'work', 'great', 'nice', 'excellent',
+    'well', 'done', 'good', 'work', 'great', 'nice', 'excellent',
     'Well done!',
     'Good work',
     'Great effort',
@@ -17,10 +17,10 @@ const docs = ['',
     'not good',
     'poor work',
     'Could have done better.',
-    //'bad', 'weak', 'poor', 'not'
+    'bad', 'weak', 'poor', 'not'
 ]
-const labels = [0.5, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
-//const labels = [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+//const labels = [0.5, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+const labels = [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 function padEnd(array, minLength, fillValue = undefined) {
     return Object.assign(new Array(minLength).fill(fillValue), array);
@@ -55,7 +55,7 @@ async function train() {
     const model = tf.sequential();
     model.add(tf.layers.embedding({
         inputDim: vocabulary.length,//vocabularySize,
-        outputDim: 8,//embeddingSize,
+        outputDim: 32,//embeddingSize,
         inputLength: maxLen,//maxLen
     }));
     model.add(tf.layers.flatten());
