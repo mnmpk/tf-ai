@@ -20,16 +20,22 @@ const docs = ['',
     'bad', 'weak', 'poor', 'not'
 ]
 //const labels = [0.5, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+
 const labels = [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 function padEnd(array, minLength, fillValue = undefined) {
     return Object.assign(new Array(minLength).fill(fillValue), array);
 }
 function embed(d) {
-    const v = padEnd(d.split(" ").map(v => {
+    /*const v = padEnd(d.split(" ").map(v => {
         const i = vocabulary.indexOf(v.replace(/[^a-zA-Z ]/g, "").toLowerCase());
         return i >= 0 ? i : 0;
-    }), maxLen, 0);
+    }), maxLen, 0);*/
+    
+    const v = d.split(" ").map(v => {
+        const i = vocabulary.indexOf(v.replace(/[^a-zA-Z ]/g, "").toLowerCase());
+        return i >= 0 ? i : 0;
+    });
     console.log(v);
     return v;
 }
@@ -56,7 +62,6 @@ async function train() {
     model.add(tf.layers.embedding({
         inputDim: vocabulary.length,//vocabularySize,
         outputDim: 32,//embeddingSize,
-        inputLength: maxLen,//maxLen
     }));
     model.add(tf.layers.flatten());
     model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
