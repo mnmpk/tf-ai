@@ -1,12 +1,12 @@
 
 const tf = require('@tensorflow/tfjs-node');
 const fs = require("fs");
-const modelPath = '/Users/mma/git/tf-ai/embedding';
+const modelPath = './embedding';
 
 const maxLen = 50;
 const vocabulary = ['', 'well', 'done', 'good', 'work', 'great', 'effort', 'nice', 'work', 'excellent', 'weak', 'bad', 'poor', 'effort', 'not', 'work', 'could', 'have', 'done', 'better'];
 const docs = ['',
-    'well', 'done', 'good', 'work', 'great', 'nice', 'excellent',
+    'good', 'great', 'nice',
     'Well done!',
     'Good work',
     'Great effort',
@@ -17,25 +17,20 @@ const docs = ['',
     'not good',
     'poor work',
     'Could have done better.',
-    'bad', 'weak', 'poor', 'not'
+    'bad', 'weak', 'poor'
 ]
 //const labels = [0.5, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
 
-const labels = [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+const labels = [0.5, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]
 
 function padEnd(array, minLength, fillValue = undefined) {
     return Object.assign(new Array(minLength).fill(fillValue), array);
 }
 function embed(d) {
-    /*const v = padEnd(d.split(" ").map(v => {
+    const v = padEnd(d.split(" ").map(v => {
         const i = vocabulary.indexOf(v.replace(/[^a-zA-Z ]/g, "").toLowerCase());
         return i >= 0 ? i : 0;
-    }), maxLen, 0);*/
-    
-    const v = d.split(" ").map(v => {
-        const i = vocabulary.indexOf(v.replace(/[^a-zA-Z ]/g, "").toLowerCase());
-        return i >= 0 ? i : 0;
-    });
+    }), maxLen, 0);
     console.log(v);
     return v;
 }
@@ -62,6 +57,7 @@ async function train() {
     model.add(tf.layers.embedding({
         inputDim: vocabulary.length,//vocabularySize,
         outputDim: 32,//embeddingSize,
+        inputLength: maxLen,//maxLen
     }));
     model.add(tf.layers.flatten());
     model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
