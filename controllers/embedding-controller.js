@@ -37,7 +37,7 @@ function embed(d) {
 const encodedDocs = docs.map(d => embed(d));
 //console.log(encodedDocs);
 
-const predict = (async (req, res) => {
+const classify = (async (req, res) => {
     console.log("Load an existing model");
     let model = await load();
     if (!model) {
@@ -96,5 +96,5 @@ async function load() {
     return null;
 }
 module.exports = {
-    predict
+    classify
 }
