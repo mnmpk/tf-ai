@@ -54,16 +54,49 @@ function compileModel(model, learningRate) {
  *   `model.fit()` calls.
  */
 async function fitModel(
-    model, input, label, numEpochs, examplesPerEpoch, batchSize, validationSplit,
+    model, input, label, numEpochs, batchSize, validationSplit,
     callbacks) {
   for (let i = 0; i < numEpochs; ++i) {
-    await model.fit(tf.tensor(input), tf.tensor(label), {
+    await model.fit(input, label, {
       epochs: 1,
       batchSize: batchSize,
       validationSplit,
       callbacks
     });
   }
+}
+async function generatePath(model, path, length,temperature){
+
+  const rememberLen = model.inputs[0].shape[1];
+  const indicesSize = model.inputs[0].shape[2];
+  let generated = [];
+  while (generated.length < length) {
+    // Encode the current input sequence as a one-hot Tensor.
+    const inputBuffer =
+        new tf.TensorBuffer([1, rememberLen, indicesSize]);
+    // Make the one-hot encoding of the seeding sentence.
+    for (let i = 0; i < rememberLen; ++i) {
+      inputBuffer.set(1, 0, i, path[i]);
+    }
+    const input = inputBuffer.toTensor();
+
+    // Call model.predict() to get the probability values of the next
+    // character.
+    const output = model.predict(input);
+
+    // Sample randomly based on the probability values.
+    const winnerIndex = sample(tf.squeeze(output), temperature);
+
+    console.log(winnerIndex);
+
+    generated.push(winnerIndex);
+    path.push(winnerIndex);
+
+    // Memory cleanups.
+    input.dispose();
+    output.dispose();
+  }
+  return generated;
 }
 
 /**
@@ -145,5 +178,5 @@ function sample(probs, temperature) {
 }
 
 module.exports = {
-    createModel, compileModel, fitModel
+    createModel, compileModel, fitModel, generatePath
 }

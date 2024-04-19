@@ -23,7 +23,8 @@
                 url: "/predict",
                 data: $("#form").serialize(),
                 success: function (msg) {
-                    alert("predict value: " + msg[0]);
+                    console.log(msg);
+                    alert("predict value: " + msg);
                 }
             });
             return false;

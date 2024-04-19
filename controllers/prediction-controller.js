@@ -2,7 +2,7 @@
 const tf = require('@tensorflow/tfjs-node');
 const fs = require("fs");
 const modelPath = './prediction';
-const { createModel, compileModel, fitModel } = require('./model');
+const { createModel, compileModel, fitModel, generatePath } = require('./model');
 
 const map = [
     [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -20,6 +20,13 @@ const routes = [
     [[0, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 1], [9, 1]],
     [[0, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
 ]
+let indices = [];
+routes.forEach((r, i) => {
+    r.forEach((p, i) => {
+        const v = (p[0] * 10) + p[1];
+        if (indices.indexOf(v) == -1) indices.push(v);
+    });
+});
 
 function padEnd(array, minLength, fillValue = undefined) {
     return Object.assign(new Array(minLength).fill(fillValue), array);
@@ -32,56 +39,46 @@ const predict = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        let result = await model.predict();
+        let result = await generatePath(model, [0, 1, 11, 12], 20, 0.5);
+        result = result.map(v=>[v/10,v%10]);
         res.send(result);
     }
 })
 
 async function train() {
-    const pointLen = 1;
-    const sampleLen = 10;
-    const model = createModel(sampleLen, pointLen, 16);
+    //Find all valid point index from route first
+
+    const pointLen = indices.length;
+    const rememberLen = 4;
+    const model = createModel(rememberLen, pointLen, 16);
     compileModel(model, 1e-2);
 
     // Train the model.
-    let input = [];
-    let label = []
-    routes.forEach((r, i) => {
-        let temp = [];
-        let tempL = [];
-        for(j=0;j<sampleLen;j++){
-            const startIndex = Math.floor(Math.random()*r.length)-1;
-            const p = r[startIndex<0?0:startIndex];
-            const n = r[(startIndex<0?0:startIndex)+1];
-            console.log(startIndex, p, n);
-            temp.push([(p[0] * 10) + p[1]]);
-            tempL.push((n[0] * 10) + n[1]);
-        }
-        input.push(temp);
-        label.push(tempL);
+    let input = new tf.TensorBuffer([
+        routes.length, rememberLen, pointLen]);
+    let label = new tf.TensorBuffer([routes.length, pointLen]);
 
-        /*input.push([
-            padEnd(r.slice(0, r.length - 1).map(p => {
-                return (p[0] * 10) + p[1];
-            }), pointLen, -1)
-        ]);
-        label.push(
-            padEnd(r.slice(1, r.length).map(p => {
-                return (p[0] * 10) + p[1];
-            }), pointLen, -1)
-        );*/
-        /*const tmp = r.map(p => {
-            p.unshift((p[0] * 10) + p[1]);
-            return p;
+console.log(indices);
+    routes.forEach((r, i) => {
+        let randomList = [];
+        for (let i = 0;
+            i < r.length - rememberLen - 1;
+            i++) {
+            randomList.push(i);
+        }
+        tf.util.shuffle(randomList);
+
+        randomList.forEach((pi) => {
+            let startIndex = pi;
+            for (let j = 0; j < rememberLen; j++) {
+                input.set(1, i, j, indices[startIndex + j]);
+            }
+            label.set(1, i, indices[startIndex + rememberLen]);
         });
-        input.push(tmp.slice(0, tmp.length - 1));
-        label.push(tmp.slice(1, tmp.length));*/
     });
-    console.log(input);
-    console.log(label);
 
     await fitModel(
-        model, input, label, 2, 16, 4, 0.25,
+        model, input.toTensor(), label.toTensor(), 100, 50, 0.25,
         {
             onBatchEnd: async (batch, logs) => {
             },
