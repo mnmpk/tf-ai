@@ -56,14 +56,12 @@ function compileModel(model, learningRate) {
 async function fitModel(
     model, input, label, numEpochs, batchSize, validationSplit,
     callbacks) {
-  for (let i = 0; i < numEpochs; ++i) {
     await model.fit(input, label, {
-      epochs: 1,
+      epochs: numEpochs,
       batchSize: batchSize,
       validationSplit,
       callbacks
     });
-  }
 }
 async function generatePath(model, indices, path, length,temperature){
 
@@ -79,7 +77,7 @@ async function generatePath(model, indices, path, length,temperature){
         new tf.TensorBuffer([1, rememberLen, indicesSize]);
     // Make the one-hot encoding of the seeding sentence.
     for (let i = 0; i < rememberLen; ++i) {
-      console.log("start",path[i]);
+      console.log("start",path[i], indices.indexOf(path[i]));
       inputBuffer.set(1, 0, i, indices.indexOf(path[i]));
     }
     const input = inputBuffer.toTensor();
