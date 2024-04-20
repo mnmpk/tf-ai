@@ -60,7 +60,7 @@ async function train() {
     //Find all valid point index from route first
     const routeExampleSize = 100;
     const pointLen = indices.length;
-    const rememberLen = 2;
+    const rememberLen = 4;
     const model = createModel(rememberLen, pointLen, 32);
     compileModel(model, 1e-2);
 
