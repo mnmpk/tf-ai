@@ -65,7 +65,7 @@ async function fitModel(
     });
   }
 }
-async function generatePath(model, path, length,temperature){
+async function generatePath(model, indices, path, length,temperature){
 
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
@@ -80,20 +80,24 @@ async function generatePath(model, path, length,temperature){
     // Make the one-hot encoding of the seeding sentence.
     for (let i = 0; i < rememberLen; ++i) {
       console.log("start",path[i]);
-      inputBuffer.set(1, 0, i, path[i]);
+      inputBuffer.set(1, 0, i, indices.indexOf(path[i]));
     }
     const input = inputBuffer.toTensor();
 
+    await input.data().then(data => console.log("input", data));
     // Call model.predict() to get the probability values of the next
     // character.
     const output = model.predict(input);
+    
+    await output.data().then(data => console.log("output", data));
+
     // Sample randomly based on the probability values.
     const winnerIndex = sample(tf.squeeze(output), temperature);
 
-    console.log(winnerIndex);
-    generated.push(winnerIndex);
+    console.log("winnerIndex", winnerIndex, indices[winnerIndex]);
+    generated.push(indices[winnerIndex]);
     path = path.slice(1);
-    path.push(winnerIndex);
+    path.push(indices[winnerIndex]);
 
     // Memory cleanups.
     input.dispose();

@@ -30,6 +30,16 @@ const routes = [
     //[[0, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
 ]
 
+const r = routes[0];
+let indices = [];
+//routes.forEach((r, i) => {
+r.forEach((p, i) => {
+    const v = (p[1] * 10) + p[0];
+    if (indices.indexOf(v) == -1) indices.push(v);
+});
+//});
+console.log(indices);
+
 const predict = (async (req, res) => {
     console.log("Load an existing model");
     let model = await load();
@@ -38,7 +48,7 @@ const predict = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        let result = await generatePath(model, req.body.path.map(p => parseInt(p)), 1, 0);
+        let result = await generatePath(model, indices, req.body.path.map(p => parseInt(p)), req.body.length, 0.1);
         result = result.map(v => [v % 10, Math.floor(v / 10)]);
         res.send(result);
     }
@@ -48,21 +58,10 @@ async function train() {
     //routes.forEach((r, i) => {
     //});
     //Find all valid point index from route first
-
-    const r = routes[0];
-    let indices = [];
-    //routes.forEach((r, i) => {
-    r.forEach((p, i) => {
-        const v = (p[1] * 10) + p[0];
-        if (indices.indexOf(v) == -1) indices.push(v);
-    });
-    //});
-    console.log(indices);
-
     const routeExampleSize = 100;
     const pointLen = indices.length;
-    const rememberLen = 3;
-    const model = createModel(rememberLen, pointLen, [16,32]);
+    const rememberLen = 2;
+    const model = createModel(rememberLen, pointLen, 32);
     compileModel(model, 1e-2);
 
     // Train the model.
@@ -72,7 +71,7 @@ async function train() {
 
     let randomList = [];
     for (let i = 0;
-        i < r.length - rememberLen - 1;
+        i < r.length - rememberLen;
         i++) {
         randomList.push(i);
     }
@@ -82,14 +81,16 @@ async function train() {
     for (let i = 0; i < routeExampleSize; i++) {
         const startIndex = randomList[i % randomList.length];
         for (let j = 0; j < rememberLen; j++) {
-            const p = indices[startIndex + j];
+            const p = startIndex + j;
             console.log(i, j, startIndex + j, p, [p % 10, Math.floor(p / 10)]);
-            input.set(1, i, j, indices[startIndex + j]);
+            input.set(1, i, j, startIndex + j);
         }
-        const t = indices[startIndex + rememberLen];
+        const t = startIndex + rememberLen;
         console.log("target", startIndex + rememberLen, t, [t % 10, Math.floor(t / 10)]);
-        label.set(1, i, indices[startIndex + rememberLen]);
+        label.set(1, i, startIndex + rememberLen);
     }
+    //input.toTensor().data().then(data => console.log(data));
+    //label.toTensor().data().then(data => console.log(data));
     //console.log(input, label);
 
     /*console.log("indices", indices);
