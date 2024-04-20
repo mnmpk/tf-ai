@@ -31,7 +31,6 @@ function embed(d) {
         const i = vocabulary.indexOf(v.replace(/[^a-zA-Z ]/g, "").toLowerCase());
         return i >= 0 ? i : 0;
     }), maxLen, 0);
-    console.log(v);
     return v;
 }
 const encodedDocs = docs.map(d => embed(d));

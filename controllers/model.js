@@ -69,13 +69,17 @@ async function generatePath(model, path, length,temperature){
 
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
+  
+  path = path.slice();
   let generated = [];
   while (generated.length < length) {
+    console.log(path);
     // Encode the current input sequence as a one-hot Tensor.
     const inputBuffer =
         new tf.TensorBuffer([1, rememberLen, indicesSize]);
     // Make the one-hot encoding of the seeding sentence.
     for (let i = 0; i < rememberLen; ++i) {
+      console.log("start",path[i]);
       inputBuffer.set(1, 0, i, path[i]);
     }
     const input = inputBuffer.toTensor();
@@ -83,19 +87,19 @@ async function generatePath(model, path, length,temperature){
     // Call model.predict() to get the probability values of the next
     // character.
     const output = model.predict(input);
-
     // Sample randomly based on the probability values.
     const winnerIndex = sample(tf.squeeze(output), temperature);
 
     console.log(winnerIndex);
-
     generated.push(winnerIndex);
+    path = path.slice(1);
     path.push(winnerIndex);
 
     // Memory cleanups.
     input.dispose();
     output.dispose();
   }
+  console.log(generated);
   return generated;
 }
 
