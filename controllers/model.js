@@ -55,15 +55,16 @@ function compileModel(model, learningRate) {
  *   `model.fit()` calls.
  */
 async function fitModel(
-  model, input, label, numEpochs, batchSize, validationSplit,
+  model, data, numEpochs, batchSize, validationSplit,
   callbacks) {
-  await model.fit(input, label, {
+  await model.fit(data.input, data.label, {
     epochs: numEpochs,
     batchSize: batchSize,
     validationSplit,
     callbacks
   });
 }
+const distance = (lastPoint, newPoint) => Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]);
 async function generatePath(model, indices, path, length, temperature) {
 
   const rememberLen = model.inputs[0].shape[1];
@@ -99,7 +100,14 @@ async function generatePath(model, indices, path, length, temperature) {
     // Sample randomly based on the probability values.
     const winnerIndex = sample(tf.squeeze(output), temperature);
 
-    console.log("winnerIndex", winnerIndex, indices[winnerIndex]);
+    const lastPoint = [generated[generated.length-1] % 10, Math.floor(generated[generated.length-1] / 10)];
+    const newPoint = [indices[winnerIndex] % 10, Math.floor(indices[winnerIndex] / 10)];
+    console.log("winner", winnerIndex, indices[winnerIndex],newPoint, "distance:"+distance(lastPoint, newPoint));
+    if(distance(lastPoint, newPoint)>1){
+      input.dispose();
+      output.dispose();
+      break;
+    }
     generated.push(indices[winnerIndex]);
     path = path.slice(1);
     path.push(indices[winnerIndex]);
