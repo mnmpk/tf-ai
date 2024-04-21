@@ -28,7 +28,7 @@ routes.forEach((r, i) => {
         if (indices.indexOf(v) == -1) indices.push(v);
     });
 });
-console.log(indices);
+console.log("indices", indices);
 
 const predict = (async (req, res) => {
     console.log("Load an existing model");
@@ -46,10 +46,10 @@ const predict = (async (req, res) => {
 
 async function train() {
     //Find all valid point index from route first
-    const routeExampleSize = 100;
+    const routeExampleSize = 300;
     const pointLen = indices.length;
-    const rememberLen = 5;
-    const model = createModel(rememberLen, pointLen, 64);
+    const rememberLen = 3;
+    const model = createModel(rememberLen, pointLen, [64,128]);
     compileModel(model, 1e-2);
 
     // Train the model.
@@ -68,15 +68,17 @@ async function train() {
         console.log(randomList);
 
         for (let i = ri * routeExampleSize; i < ri * routeExampleSize + routeExampleSize; i++) {
-            const startIndex = randomList[i % randomList.length];
+            const routeStartIndex = randomList[(i%routeExampleSize) % randomList.length];
             for (let j = 0; j < rememberLen; j++) {
-                const p = startIndex + j;
-                console.log(i, j, p, indices[p], [indices[p] % 10, Math.floor(indices[p] / 10)]);
-                input.set(1, i, j, p);
+                const routePointIndex = routeStartIndex + j;
+                const worldValue = (r[routePointIndex][1]*10)+r[routePointIndex][0];
+                console.log("i:"+i, "j:"+j, "route point index:"+routePointIndex, "route point:"+r[routePointIndex], "world value:"+worldValue, "world index:"+indices.indexOf(worldValue));
+                input.set(1, i, j, indices.indexOf(worldValue));
             }
-            const t = startIndex + rememberLen;
-            console.log("target", t, indices[t], [indices[t] % 10, Math.floor(indices[t] / 10)]);
-            label.set(1, i, t);
+            const targetPointIndex = routeStartIndex + rememberLen;
+            const targetWorldValue = (r[targetPointIndex][1]*10)+r[targetPointIndex][0];
+            console.log("i:"+i, "target point index:"+targetPointIndex, "target point:"+r[targetPointIndex], "world value:"+targetWorldValue, "world index:"+indices.indexOf(targetWorldValue));
+            label.set(1, i, indices.indexOf(targetWorldValue));
         }
     });
     //input.toTensor().data().then(data => console.log(data));
@@ -84,7 +86,7 @@ async function train() {
     //console.log(input, label);
 
     await fitModel(
-        model, input.toTensor(), label.toTensor(), 100, 128, 0.0625,
+        model, input.toTensor(), label.toTensor(), 300, 128, 0.0625,
         {
             onBatchEnd: async (batch, logs) => {
             },

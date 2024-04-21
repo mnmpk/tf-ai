@@ -25,16 +25,17 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes) {
       returnSequences: i < lstmLayerSizes.length - 1,
       inputShape: i === 0 ? [sampleLen, charSetSize] : undefined
     }));
+    model.add(tf.layers.dropout(0.5));
   }
   model.add(
-      tf.layers.dense({units: charSetSize, activation: 'softmax'}));
+    tf.layers.dense({ units: charSetSize, activation: 'softmax' }));
 
   return model;
 }
 
 function compileModel(model, learningRate) {
   const optimizer = tf.train.rmsprop(learningRate);
-  model.compile({optimizer: optimizer, loss: 'categoricalCrossentropy'});
+  model.compile({ optimizer: optimizer, loss: 'categoricalCrossentropy' });
   console.log(`Compiled model with learning rate ${learningRate}`);
   model.summary();
 }
@@ -54,30 +55,36 @@ function compileModel(model, learningRate) {
  *   `model.fit()` calls.
  */
 async function fitModel(
-    model, input, label, numEpochs, batchSize, validationSplit,
-    callbacks) {
-    await model.fit(input, label, {
-      epochs: numEpochs,
-      batchSize: batchSize,
-      validationSplit,
-      callbacks
-    });
+  model, input, label, numEpochs, batchSize, validationSplit,
+  callbacks) {
+  await model.fit(input, label, {
+    epochs: numEpochs,
+    batchSize: batchSize,
+    validationSplit,
+    callbacks
+  });
 }
-async function generatePath(model, indices, path, length,temperature){
+async function generatePath(model, indices, path, length, temperature) {
 
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
-  
-  path = path.slice();
+  if (path.length > rememberLen) {
+    path = path.slice(-rememberLen);
+  } else if(path.length < rememberLen) {
+    //Invalid input
+    path = Object.assign(new Array(rememberLen).fill(path[path.length-1]), path);
+  }else{
+    path = path.slice();
+  }
   let generated = [];
   while (generated.length < length) {
     console.log(path);
     // Encode the current input sequence as a one-hot Tensor.
     const inputBuffer =
-        new tf.TensorBuffer([1, rememberLen, indicesSize]);
+      new tf.TensorBuffer([1, rememberLen, indicesSize]);
     // Make the one-hot encoding of the seeding sentence.
     for (let i = 0; i < rememberLen; ++i) {
-      console.log("start",path[i], indices.indexOf(path[i]));
+      console.log("start", path[i], indices.indexOf(path[i]));
       inputBuffer.set(1, 0, i, indices.indexOf(path[i]));
     }
     const input = inputBuffer.toTensor();
@@ -86,7 +93,7 @@ async function generatePath(model, indices, path, length,temperature){
     // Call model.predict() to get the probability values of the next
     // character.
     const output = model.predict(input);
-    
+
     await output.data().then(data => console.log("output", data));
 
     // Sample randomly based on the probability values.
@@ -120,8 +127,8 @@ async function generatePath(model, indices, path, length,temperature){
  * @returns {string} The generated sentence.
  */
 async function generateText(
-    model, textData, sentenceIndices, length, temperature,
-    onTextGenerationChar) {
+  model, textData, sentenceIndices, length, temperature,
+  onTextGenerationChar) {
   const sampleLen = model.inputs[0].shape[1];
   const charSetSize = model.inputs[0].shape[2];
 
@@ -132,7 +139,7 @@ async function generateText(
   while (generated.length < length) {
     // Encode the current input sequence as a one-hot Tensor.
     const inputBuffer =
-        new tf.TensorBuffer([1, sampleLen, charSetSize]);
+      new tf.TensorBuffer([1, sampleLen, charSetSize]);
 
     // Make the one-hot encoding of the seeding sentence.
     for (let i = 0; i < sampleLen; ++i) {
@@ -184,5 +191,5 @@ function sample(probs, temperature) {
 }
 
 module.exports = {
-    createModel, compileModel, fitModel, generatePath
+  createModel, compileModel, fitModel, generatePath
 }
