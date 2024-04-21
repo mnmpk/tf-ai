@@ -1,5 +1,5 @@
 const tf = require('@tensorflow/tfjs-node');
-
+const { Data } = require('./data');
 
 /**
  * Create a model for next-character prediction.
@@ -65,16 +65,16 @@ async function fitModel(
   });
 }
 const distance = (lastPoint, newPoint) => Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]);
-async function generatePath(model, indices, path, length, temperature) {
+async function generatePath(model, data, path, length, temperature) {
 
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
   if (path.length > rememberLen) {
     path = path.slice(-rememberLen);
-  } else if(path.length < rememberLen) {
+  } else if (path.length < rememberLen) {
     //Invalid input
-    path = Object.assign(new Array(rememberLen).fill(path[path.length-1]), path);
-  }else{
+    path = Object.assign(new Array(rememberLen).fill(path[path.length - 1]), path);
+  } else {
     path = path.slice();
   }
   let generated = [];
@@ -85,8 +85,8 @@ async function generatePath(model, indices, path, length, temperature) {
       new tf.TensorBuffer([1, rememberLen, indicesSize]);
     // Make the one-hot encoding of the seeding sentence.
     for (let i = 0; i < rememberLen; ++i) {
-      console.log("start", path[i], indices.indexOf(path[i]));
-      inputBuffer.set(1, 0, i, indices.indexOf(path[i]));
+      console.log("start", path[i], data.encode(path[i]));
+      inputBuffer.set(1, 0, i, data.encode(path[i]));
     }
     const input = inputBuffer.toTensor();
 
@@ -100,17 +100,17 @@ async function generatePath(model, indices, path, length, temperature) {
     // Sample randomly based on the probability values.
     const winnerIndex = sample(tf.squeeze(output), temperature);
 
-    const lastPoint = [generated[generated.length-1] % 10, Math.floor(generated[generated.length-1] / 10)];
-    const newPoint = [indices[winnerIndex] % 10, Math.floor(indices[winnerIndex] / 10)];
-    console.log("winner", winnerIndex, indices[winnerIndex],newPoint, "distance:"+distance(lastPoint, newPoint));
-    if(distance(lastPoint, newPoint)>1){
+    const lastPoint = Data.conv2Coordinate(generated[generated.length - 1]);
+    const newPoint = Data.conv2Coordinate(data.decode(winnerIndex));
+    console.log("winner", winnerIndex, data.decode(winnerIndex), newPoint, "distance:" + distance(lastPoint, newPoint));
+    if (distance(lastPoint, newPoint) > 1) {
       input.dispose();
       output.dispose();
       break;
     }
-    generated.push(indices[winnerIndex]);
+    generated.push(data.decode(winnerIndex));
     path = path.slice(1);
-    path.push(indices[winnerIndex]);
+    path.push(data.decode(winnerIndex));
 
     // Memory cleanups.
     input.dispose();

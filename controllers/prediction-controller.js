@@ -3,7 +3,10 @@ const tf = require('@tensorflow/tfjs-node');
 const fs = require("fs");
 const modelPath = './prediction';
 const { createModel, compileModel, fitModel, generatePath } = require('./model');
-const { routesIndices, prepareData } = require('./data');
+const { routes, Data } = require('./data');
+
+const rememberLen = 3;
+const data = new Data(routes, rememberLen);
 
 const predict = (async (req, res) => {
     console.log("Load an existing model");
@@ -13,21 +16,18 @@ const predict = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        let result = await generatePath(model, routesIndices, req.body.path.map(p => parseInt(p)), req.body.length, 1.0);
+        let result = await generatePath(model, data, req.body.path.map(p => parseInt(p)), req.body.length, 1.0);
         result = result.map(v => [v % 10, Math.floor(v / 10)]);
         res.send(result);
     }
 })
 
 async function train() {
-    //Find all valid point index from route first
-    const pointLen = routesIndices.length;
-    const rememberLen = 3;
-    const model = createModel(rememberLen, pointLen, [64,128]);
+    const model = createModel(rememberLen, data.pointLen, [64,128]);
     compileModel(model, 1e-2);
 
     await fitModel(
-        model, await prepareData(rememberLen, pointLen), 300, 128, 0.0625,
+        model, await data.prepareData(100), 300, 128, 0.0625,
         {
             onBatchEnd: async (batch, logs) => {
             },
