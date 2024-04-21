@@ -1,8 +1,6 @@
 const tf = require('@tensorflow/tfjs-node');
-const { Data } = require('./data');
+const { Data, difficulty } = require('./data');
 
-const cat = ["easy", "hard"];
-const maxLen = cat.length;
 
 /**
  * Create a model for next-character prediction.
@@ -18,7 +16,7 @@ const maxLen = cat.length;
 function createModel(sampleLen, charSetSize, lstmLayerSizes) {
   // Define input layers
   const timeSeriesInput = tf.input({ shape: [sampleLen, charSetSize] });
-  const categoricalInput = tf.input({ shape: [maxLen] });
+  const categoricalInput = tf.input({ shape: [difficulty.length] });
 
   // Feature extraction for time series data
   if (!Array.isArray(lstmLayerSizes)) {
@@ -46,12 +44,12 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes) {
   const lstmDense = tf.layers.dense({ units: charSetSize, activation: 'softmax' }).apply(last);
 
   // Embedding for categorical data
-  const embedding = tf.layers.embedding({ inputDim: cat.length, outputDim: 32 }).apply(categoricalInput);
+  const embedding = tf.layers.embedding({ inputDim: difficulty.length, outputDim: 32 }).apply(categoricalInput);
   const flatten = tf.layers.flatten().apply(embedding);
-  const catDense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten);
+  const categoricalDense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten);
 
   // Concatenate the outputs
-  const concat = tf.layers.concatenate().apply([lstmDense, catDense]);
+  const concat = tf.layers.concatenate().apply([lstmDense, categoricalDense]);
 
   // Additional hidden layers
   const hidden = tf.layers.dense({ units: 128, activation: 'relu' }).apply(concat);
@@ -59,20 +57,12 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes) {
 
   // Create the model
   const model = tf.model({ inputs: [timeSeriesInput, categoricalInput], outputs: output });
-  //const model = tf.model({ inputs: timeSeriesInput, outputs: lstmDense });
-  //const model = tf.model({ inputs: categoricalInput, outputs: catDense });
   return model;
 }
 
 function compileModel(model, learningRate) {
   const optimizer = tf.train.rmsprop(learningRate);
   model.compile({ optimizer: optimizer, loss: 'categoricalCrossentropy' });
-
-  /*model.compile({
-    loss: 'binaryCrossentropy',
-    optimizer: 'adam',
-    metrics: ['acc']
-  });*/
   console.log(`Compiled model with learning rate ${learningRate}`);
   model.summary();
 }
@@ -101,9 +91,12 @@ async function fitModel(
     callbacks
   });
 }
-const distance = (lastPoint, newPoint) => Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]);
-async function generatePath(model, data, path, length, temperature) {
 
+const distance = (lastPoint, newPoint) => Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]);
+
+async function generatePath(model, data, reqBody, temperature) {
+  const {l, p, d} = reqBody;
+  let path = p.map(p => parseInt(p));
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
   if (path.length > rememberLen) {
@@ -115,7 +108,7 @@ async function generatePath(model, data, path, length, temperature) {
     path = path.slice();
   }
   let generated = [];
-  while (generated.length < length) {
+  while (generated.length < l) {
     console.log(path);
     // Encode the current input sequence as a one-hot Tensor.
     const inputBuffer =
@@ -130,7 +123,14 @@ async function generatePath(model, data, path, length, temperature) {
     await input.data().then(data => console.log("input", data));
     // Call model.predict() to get the probability values of the next
     // character.
-    const output = model.predict([input, tf.tensor2d([[1,0]])]);
+    console.log("difficulty:"+d, difficulty.indexOf(d));
+    let difficultyInput = [];
+    switch (difficulty.indexOf(d)) {
+      case 0: difficultyInput.push([1, 0, 0]); break;
+      case 1: difficultyInput.push([0, 1, 0]); break;
+      case 2: difficultyInput.push([0, 0, 1]); break;
+  }
+    const output = model.predict([input, tf.tensor2d(difficultyInput)]);
 
     await output.data().then(data => console.log("output", data));
 

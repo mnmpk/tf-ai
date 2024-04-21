@@ -16,7 +16,7 @@ const predict = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        let result = await generatePath(model, data, req.body.path.map(p => parseInt(p)), req.body.length, 1.0);
+        let result = await generatePath(model, data, req.body, 1.0);
         result = result.map(v => [v % 10, Math.floor(v / 10)]);
         res.send(result);
     }
@@ -25,9 +25,9 @@ const predict = (async (req, res) => {
 async function train() {
     const model = createModel(rememberLen, data.pointLen, [64,128]);
     compileModel(model, 1e-2);
-
+    const d = await data.prepareData(300);
     await fitModel(
-        model, await data.prepareData(100), 300, 128, 0.0625,
+        model, d, 300, 128, 0.0625,
         {
             onBatchEnd: async (batch, logs) => {
             },

@@ -19,10 +19,9 @@ const routes = [
     [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [3, 6], [3, 7], [2, 7], [2, 8], [2, 9]],
     [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
 ]
+const routesDifficulty = ["hard", "easy", "medium", "hard"]
 
-
-const cat = ["easy", "hard"];
-const maxLen = 1;
+const difficulty = ["easy", "medium", "hard"];
 
 class Data {
 
@@ -56,9 +55,7 @@ class Data {
             this.routes.length * examplePerRoute, this.rememberLen, this.pointLen]);
         let label = new tf.TensorBuffer([this.routes.length * examplePerRoute, this.pointLen]);
 
-        let catInput = new tf.TensorBuffer([this.routes.length * examplePerRoute, cat.length]);
-        let catLabel = new tf.TensorBuffer([this.routes.length * examplePerRoute, cat.length]);
-
+        let difficultyInput = [];
         this.routes.forEach((r, ri) => {
             let randomList = [];
             for (let i = 0;
@@ -78,17 +75,18 @@ class Data {
                 const targetPointIndex = routeStartIndex + this.rememberLen;
                 console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + r[targetPointIndex]);
                 label.set(1, i, this.encode(Data.conv2Value(r[targetPointIndex])));
-                catInput.set(1, i, ri%2);
-                catLabel.set(1, i, 1);
+                console.log("routes difficulty:" + routesDifficulty[ri], difficulty.indexOf(routesDifficulty[ri]));
+                switch (difficulty.indexOf(routesDifficulty[ri])) {
+                    case 0: difficultyInput.push([1, 0, 0]); break;
+                    case 1: difficultyInput.push([0, 1, 0]); break;
+                    case 2: difficultyInput.push([0, 0, 1]); break;
+                }
             }
         });
-        
-        //return { input: input.toTensor(), label: label.toTensor() };
-        //return { input: catInput.toTensor(), label: catLabel.toTensor() };
-        return { input: [input.toTensor(), catInput.toTensor()], label: label.toTensor() };
+        return { input: [input.toTensor(), tf.tensor2d(difficultyInput)], label: label.toTensor() };
     }
 }
 
 
 
-module.exports = { map, routes, cat, Data }
+module.exports = { map, routes, difficulty, Data }
