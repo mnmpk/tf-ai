@@ -1,6 +1,9 @@
 const tf = require('@tensorflow/tfjs-node');
 const { Data } = require('./data');
 
+const cat = ["easy", "hard"];
+const maxLen = cat.length;
+
 /**
  * Create a model for next-character prediction.
  * @param {number} sampleLen Sampling length: how many characters form the
@@ -13,29 +16,63 @@ const { Data } = require('./data');
  *   `[null, charSetSize]`.
  */
 function createModel(sampleLen, charSetSize, lstmLayerSizes) {
+  // Define input layers
+  const timeSeriesInput = tf.input({ shape: [sampleLen, charSetSize] });
+  const categoricalInput = tf.input({ shape: [maxLen] });
+
+  // Feature extraction for time series data
   if (!Array.isArray(lstmLayerSizes)) {
     lstmLayerSizes = [lstmLayerSizes];
   }
-
-  const model = tf.sequential();
+  let last;
   for (let i = 0; i < lstmLayerSizes.length; ++i) {
     const lstmLayerSize = lstmLayerSizes[i];
-    model.add(tf.layers.lstm({
-      units: lstmLayerSize,
-      returnSequences: i < lstmLayerSizes.length - 1,
-      inputShape: i === 0 ? [sampleLen, charSetSize] : undefined
-    }));
-    model.add(tf.layers.dropout(0.5));
+    let lstm;
+    if (last) {
+      lstm = tf.layers.lstm({
+        units: lstmLayerSize,
+        returnSequences: i < lstmLayerSizes.length - 1,
+        inputShape: i === 0 ? [sampleLen, charSetSize] : undefined
+      }).apply(last);
+    } else {
+      lstm = tf.layers.lstm({
+        units: lstmLayerSize,
+        returnSequences: i < lstmLayerSizes.length - 1,
+        inputShape: i === 0 ? [sampleLen, charSetSize] : undefined
+      }).apply(timeSeriesInput);
+    }
+    last = tf.layers.dropout(0.5).apply(lstm);
   }
-  model.add(
-    tf.layers.dense({ units: charSetSize, activation: 'softmax' }));
+  const lstmDense = tf.layers.dense({ units: charSetSize, activation: 'softmax' }).apply(last);
 
+  // Embedding for categorical data
+  const embedding = tf.layers.embedding({ inputDim: cat.length, outputDim: 32 }).apply(categoricalInput);
+  const flatten = tf.layers.flatten().apply(embedding);
+  const catDense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten);
+
+  // Concatenate the outputs
+  const concat = tf.layers.concatenate().apply([lstmDense, catDense]);
+
+  // Additional hidden layers
+  const hidden = tf.layers.dense({ units: 128, activation: 'relu' }).apply(concat);
+  const output = tf.layers.dense({ units: charSetSize, activation: 'softmax' }).apply(hidden);
+
+  // Create the model
+  const model = tf.model({ inputs: [timeSeriesInput, categoricalInput], outputs: output });
+  //const model = tf.model({ inputs: timeSeriesInput, outputs: lstmDense });
+  //const model = tf.model({ inputs: categoricalInput, outputs: catDense });
   return model;
 }
 
 function compileModel(model, learningRate) {
   const optimizer = tf.train.rmsprop(learningRate);
   model.compile({ optimizer: optimizer, loss: 'categoricalCrossentropy' });
+
+  /*model.compile({
+    loss: 'binaryCrossentropy',
+    optimizer: 'adam',
+    metrics: ['acc']
+  });*/
   console.log(`Compiled model with learning rate ${learningRate}`);
   model.summary();
 }
@@ -93,7 +130,7 @@ async function generatePath(model, data, path, length, temperature) {
     await input.data().then(data => console.log("input", data));
     // Call model.predict() to get the probability values of the next
     // character.
-    const output = model.predict(input);
+    const output = model.predict([input, tf.tensor2d([[1,0]])]);
 
     await output.data().then(data => console.log("output", data));
 
