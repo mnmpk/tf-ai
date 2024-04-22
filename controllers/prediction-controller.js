@@ -5,7 +5,7 @@ const modelPath = './prediction';
 const { createModel, compileModel, fitModel, generatePath } = require('./model');
 const { routes, Data } = require('./data');
 
-const rememberLen = 3;
+const rememberLen = 2;
 const data = new Data(routes, rememberLen);
 
 const predict = (async (req, res) => {
@@ -17,7 +17,7 @@ const predict = (async (req, res) => {
     }
     if (model) {
         let result = await generatePath(model, data, req.body, 1.0);
-        result = result.map(v => [v % 10, Math.floor(v / 10)]);
+        result = result.map(v => Data.conv2Coordinate(v));
         res.send(result);
     }
 })
