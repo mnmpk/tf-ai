@@ -11,12 +11,19 @@
 <body>
     <form id="form" onsubmit="return s()" method="post">
         <input type="radio" id="easy" name="d" value="easy" checked>
-        <label for="easy">Easy</label><br>
+        <label for="easy">Easy</label><br/>
         <input type="radio" id="medium" name="d" value="medium">
-        <label for="medium">Medium</label><br>
+        <label for="medium">Medium</label><br/>
         <input type="radio" id="hard" name="d" value="hard">
-        <label for="hard">Hard</label>
-        <input id="length" type="number" name="l" value="20" />
+        <label for="hard">Hard</label><br/>
+<br/>
+        <input type="radio" id="sea" name="v" value="sea" checked>
+        <label for="sea">Sea</label><br/>
+        <input type="radio" id="hill" name="v" value="hill">
+        <label for="hill">Hill</label><br/>
+
+        <input id="condition" type="number" name="c" value="3" /><br/>
+        <input id="length" type="number" name="l" value="20" /><br/>
         <button type="submit" id="submit">Submit</button>
     </form>
     <canvas id="map">
@@ -92,7 +99,9 @@
                     data: {
                         p: startPath.map(p => (p[1] * 10) + p[0]),
                         l: $('#length').val(),
-                        d: $('input[name="d"]:checked').val()
+                        d: $('input[name="d"]:checked').val(),
+                        v: $('input[name="v"]:checked').val(),
+                        c: $('#condition').val()
                     },
                     success: function (res) {
                         var ctx = $("#map")[0].getContext('2d')

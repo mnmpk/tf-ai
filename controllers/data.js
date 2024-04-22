@@ -22,6 +22,8 @@ const routes = [
 const routesDifficulty = ["hard", "hard",  "easy", "medium"]
 
 const difficulty = ["easy", "medium", "hard"];
+const landscape = ["sea", "hill"];
+const condition = [0,1,2,3,4];
 
 class Data {
 
@@ -56,6 +58,8 @@ class Data {
         let label = new tf.TensorBuffer([this.routes.length * examplePerRoute, this.pointLen]);
 
         let difficultyInput = [];
+        let landscapeInput = [];
+        let conditionInput = [];
         this.routes.forEach((r, ri) => {
             let randomList = [];
             for (let i = 0;
@@ -81,12 +85,17 @@ class Data {
                     case 1: difficultyInput.push([0, 1, 0]); break;
                     case 2: difficultyInput.push([0, 0, 1]); break;
                 }
+                if(ri==0)
+                    landscapeInput.push([0, 1]);
+                else
+                    landscapeInput.push([1, 0]);
+                conditionInput.push(ri);
             }
         });
-        return { input: [input.toTensor(), tf.tensor2d(difficultyInput)], label: label.toTensor() };
+        return { input: [input.toTensor(), tf.tensor2d(difficultyInput), tf.tensor2d(landscapeInput), tf.tensor1d(conditionInput)], label: label.toTensor() };
     }
 }
 
 
 
-module.exports = { map, routes, difficulty, Data }
+module.exports = { map, routes, difficulty, landscape, Data }

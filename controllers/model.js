@@ -13,12 +13,10 @@ const { Data, difficulty } = require('./data');
  *   of `[null, sampleLen, charSetSize]` and an output shape of
  *   `[null, charSetSize]`.
  */
-function createModel(sampleLen, charSetSize, lstmLayerSizes) {
-  // Define input layers
-  const timeSeriesInput = tf.input({ shape: [sampleLen, charSetSize] });
-  const categoricalInput = tf.input({ shape: [difficulty.length] });
+function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes, numberCategorySizes) {
 
   // Feature extraction for time series data
+  const timeSeriesInput = tf.input({ shape: [sampleLen, charSetSize] });
   if (!Array.isArray(lstmLayerSizes)) {
     lstmLayerSizes = [lstmLayerSizes];
   }
@@ -43,20 +41,44 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes) {
   }
   const lstmDense = tf.layers.dense({ units: charSetSize, activation: 'softmax' }).apply(last);
 
-  // Embedding for categorical data
-  const embedding = tf.layers.embedding({ inputDim: difficulty.length, outputDim: 32 }).apply(categoricalInput);
-  const flatten = tf.layers.flatten().apply(embedding);
-  const categoricalDense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten);
+
+  // Feature extraction for string data
+  if (!Array.isArray(stringCategorySizes)) {
+    stringCategorySizes = [stringCategorySizes];
+  }
+  stringCategoricalInputs = [];
+  stringCategoricalDenses = [];
+  for (let i = 0; i < stringCategorySizes.length; ++i) {
+    const categoricalInput = tf.input({ shape: [stringCategorySizes[i]] });
+    // Embedding for categorical data
+    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i], outputDim: 32 }).apply(categoricalInput);
+    const flatten = tf.layers.flatten().apply(embedding);
+    stringCategoricalInputs.push(categoricalInput);
+    stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
+  }
+
+  // Feature extraction for number data
+  if (!Array.isArray(numberCategorySizes)) {
+    numberCategorySizes = [numberCategorySizes];
+  }
+  numberCategoricalInputs = [];
+  numberCategoricalDenses = [];
+  for (let i = 0; i < numberCategorySizes.length; ++i) {
+    const categoricalInput = tf.input({ shape: [1] });
+    numberCategoricalInputs.push(categoricalInput);
+    numberCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(categoricalInput));
+  }
+
 
   // Concatenate the outputs
-  const concat = tf.layers.concatenate().apply([lstmDense, categoricalDense]);
+  const concat = tf.layers.concatenate().apply([lstmDense].concat(stringCategoricalDenses).concat(numberCategoricalDenses));
 
   // Additional hidden layers
   const hidden = tf.layers.dense({ units: 128, activation: 'relu' }).apply(concat);
   const output = tf.layers.dense({ units: charSetSize, activation: 'softmax' }).apply(hidden);
 
   // Create the model
-  const model = tf.model({ inputs: [timeSeriesInput, categoricalInput], outputs: output });
+  const model = tf.model({ inputs: [timeSeriesInput].concat(stringCategoricalInputs).concat(numberCategoricalInputs), outputs: output });
   return model;
 }
 
@@ -95,7 +117,7 @@ async function fitModel(
 const distance = (lastPoint, newPoint) => Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]);
 
 async function generatePath(model, data, reqBody, temperature) {
-  const {l, p, d} = reqBody;
+  const { l, p, d, v, c } = reqBody;
   let path = p.map(p => parseInt(p));
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
@@ -123,14 +145,22 @@ async function generatePath(model, data, reqBody, temperature) {
     await input.data().then(data => console.log("input", data));
     // Call model.predict() to get the probability values of the next
     // character.
-    console.log("difficulty:"+d, difficulty.indexOf(d));
+    console.log("difficulty:" + d, difficulty.indexOf(d));
     let difficultyInput = [];
     switch (difficulty.indexOf(d)) {
       case 0: difficultyInput.push([1, 0, 0]); break;
       case 1: difficultyInput.push([0, 1, 0]); break;
       case 2: difficultyInput.push([0, 0, 1]); break;
-  }
-    const output = model.predict([input, tf.tensor2d(difficultyInput)]);
+    }
+
+    let landscape = [];
+    if (v == "sea") {
+      landscape.push([0, 1]);
+    } else {
+      landscape.push([1, 0]);
+    }
+
+    const output = model.predict([input, tf.tensor2d(difficultyInput), tf.tensor2d(landscape), tf.tensor1d([parseInt(c)])]);
 
     await output.data().then(data => console.log("output", data));
 
