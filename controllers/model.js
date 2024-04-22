@@ -49,9 +49,10 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
   stringCategoricalInputs = [];
   stringCategoricalDenses = [];
   for (let i = 0; i < stringCategorySizes.length; ++i) {
-    const categoricalInput = tf.input({ shape: [stringCategorySizes[i]] });
+    
+    const categoricalInput = tf.input({ shape: [stringCategorySizes[i]]/*max input size*/ });
     // Embedding for categorical data
-    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i], outputDim: 32 }).apply(categoricalInput);
+    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i] /*possible tag size */, outputDim: 32 }).apply(categoricalInput);
     const flatten = tf.layers.flatten().apply(embedding);
     stringCategoricalInputs.push(categoricalInput);
     stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
