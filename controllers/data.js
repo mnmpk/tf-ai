@@ -13,26 +13,51 @@ const map = [
     [0, 0, 1, 0, 0, 0, 0, 1, 1, 1],
 ];
 
-const routes = [
-    [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 1], [9, 1]],
-    [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
-    [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [3, 6], [3, 7], [2, 7], [2, 8], [2, 9]],
-    [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
+const trails = [
+    {
+        difficulty: 1,
+        landscape: 3,
+        description: "this is a beautiful trial with sea view, very easy to access.",
+        route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 1], [9, 1]],
+    },
+    {
+        difficulty: 2,
+        landscape: 5,
+        description: "Very long trail!",
+        route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
+    },
+    {
+        difficulty: 5,
+        landscape: 4,
+        description: "Good conditioned route with good hill view. But many monkey.",
+        route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [3, 6], [3, 7], [2, 7], [2, 8], [2, 9]],
+    },
+    {
+        difficulty: 4,
+        landscape: 5,
+        description: "Valuable hill & sea view, high difficulty, but it worth!",
+        route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
+    },
+    {
+        difficulty: 3,
+        landscape: 1,
+        description: "This is a challenging trial with deep slope.",
+        route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [6, 4], [7, 4],[7, 3], [7, 2], [8, 2], [8, 1], [9, 1]],
+    },
 ]
-const routesDifficulty = ["hard", "hard",  "easy", "medium"]
 
-const difficulty = ["easy", "medium", "hard"];
-const landscape = ["sea", "hill"];
-const condition = [0,1,2,3,4];
+const difficulty = [0, 1, 2, 3, 4, 5];
+const landscape = [0, 1, 2, 3, 4, 5];
+const tags = ["sea", "hill", "river", "plant", "animal", "monkey", "deep", "beautiful"];
 
 class Data {
 
-    constructor(routes, rememberLen) {
-        this.routes = routes;
+    constructor(trails, rememberLen) {
+        this.trails = trails;
         this.rememberLen = rememberLen;
         this.routesIndices = [];
-        this.routes.forEach((r, i) => {
-            r.forEach((p, i) => {
+        this.trails.forEach((trail, i) => {
+            trail.route.forEach((p, i) => {
                 const v = (p[1] * 10) + p[0];
                 if (this.routesIndices.indexOf(v) == -1) this.routesIndices.push(v);
             });
@@ -52,50 +77,58 @@ class Data {
     decode(i) {
         return this.routesIndices[i];
     }
+    static preprocessText(text){
+        if(text)
+            return text.replace(/[^a-zA-Z ]/g, "").toLowerCase();
+        return "";
+    }
+    static encodeTags(ts) {
+        let t = new Array(tags.length).fill(0);
+        ts.forEach(tag => {
+            if (tag)
+                t[tags.indexOf(tag)] = 1;
+        });
+        return t;
+    }
+    static textToTags(text){
+        return Data.encodeTags(tags.map(tag => Data.preprocessText(text).indexOf(tag) >= 0 ? tag : null));
+    }
     async prepareData(examplePerRoute) {
         let input = new tf.TensorBuffer([
-            this.routes.length * examplePerRoute, this.rememberLen, this.pointLen]);
-        let label = new tf.TensorBuffer([this.routes.length * examplePerRoute, this.pointLen]);
+            this.trails.length * examplePerRoute, this.rememberLen, this.pointLen]);
+        let label = new tf.TensorBuffer([this.trails.length * examplePerRoute, this.pointLen]);
 
         let difficultyInput = [];
         let landscapeInput = [];
-        let conditionInput = [];
-        this.routes.forEach((r, ri) => {
+        let tagsInput = [];
+
+        this.trails.forEach((trail, ti) => {
             let randomList = [];
             for (let i = 0;
-                i < r.length - this.rememberLen;
+                i < trail.route.length - this.rememberLen;
                 i++) {
                 randomList.push(i);
             }
             tf.util.shuffle(randomList);
-            console.log(randomList);
-            for (let i = ri * examplePerRoute; i < ri * examplePerRoute + examplePerRoute; i++) {
+            for (let i = ti * examplePerRoute; i < ti * examplePerRoute + examplePerRoute; i++) {
                 const routeStartIndex = randomList[(i % examplePerRoute) % randomList.length];
                 for (let j = 0; j < this.rememberLen; j++) {
                     const routePointIndex = routeStartIndex + j;
-                    console.log("i:" + i, "j:" + j, "route point index:" + routePointIndex, "route point:" + r[routePointIndex]);
-                    input.set(1, i, j, this.encode(Data.conv2Value(r[routePointIndex])));
+                    console.log("i:" + i, "j:" + j, "route point index:" + routePointIndex, "route point:" + trail.route[routePointIndex]);
+                    input.set(1, i, j, this.encode(Data.conv2Value(trail.route[routePointIndex])));
                 }
                 const targetPointIndex = routeStartIndex + this.rememberLen;
-                console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + r[targetPointIndex]);
-                label.set(1, i, this.encode(Data.conv2Value(r[targetPointIndex])));
-                console.log("routes difficulty:" + routesDifficulty[ri], difficulty.indexOf(routesDifficulty[ri]));
-                switch (difficulty.indexOf(routesDifficulty[ri])) {
-                    case 0: difficultyInput.push([1, 0, 0]); break;
-                    case 1: difficultyInput.push([0, 1, 0]); break;
-                    case 2: difficultyInput.push([0, 0, 1]); break;
-                }
-                if(ri==0)
-                    landscapeInput.push([0, 1]);
-                else
-                    landscapeInput.push([1, 0]);
-                conditionInput.push(ri);
+                console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + trail.route[targetPointIndex]);
+                label.set(1, i, this.encode(Data.conv2Value(trail.route[targetPointIndex])));
+                difficultyInput.push(trail.difficulty);
+                landscapeInput.push(trail.landscape);
+                tagsInput.push(Data.textToTags(trail.description));
             }
         });
-        return { input: [input.toTensor(), tf.tensor2d(difficultyInput), tf.tensor2d(landscapeInput), tf.tensor1d(conditionInput)], label: label.toTensor() };
+        return { input: [input.toTensor(), tf.tensor2d(tagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
     }
 }
 
 
 
-module.exports = { map, routes, difficulty, landscape, Data }
+module.exports = { map, trails, tags, difficulty, landscape, Data }

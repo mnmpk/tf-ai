@@ -118,7 +118,7 @@ async function fitModel(
 const distance = (lastPoint, newPoint) => Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1]);
 
 async function generatePath(model, data, reqBody, temperature) {
-  const { l, p, d, v, c } = reqBody;
+  const { l, p, d, v, desc } = reqBody;
   let path = p.map(p => parseInt(p));
   const rememberLen = model.inputs[0].shape[1];
   const indicesSize = model.inputs[0].shape[2];
@@ -144,24 +144,8 @@ async function generatePath(model, data, reqBody, temperature) {
     const input = inputBuffer.toTensor();
 
     await input.data().then(data => console.log("input", data));
-    // Call model.predict() to get the probability values of the next
-    // character.
-    console.log("difficulty:" + d, difficulty.indexOf(d));
-    let difficultyInput = [];
-    switch (difficulty.indexOf(d)) {
-      case 0: difficultyInput.push([1, 0, 0]); break;
-      case 1: difficultyInput.push([0, 1, 0]); break;
-      case 2: difficultyInput.push([0, 0, 1]); break;
-    }
 
-    let landscape = [];
-    if (v == "sea") {
-      landscape.push([0, 1]);
-    } else {
-      landscape.push([1, 0]);
-    }
-
-    const output = model.predict([input, tf.tensor2d(difficultyInput), tf.tensor2d(landscape), tf.tensor1d([parseInt(c)])]);
+    const output = model.predict([input, tf.tensor2d([Data.textToTags(desc)]), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
 
     await output.data().then(data => console.log("output", data));
 
