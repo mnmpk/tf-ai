@@ -1,5 +1,5 @@
 const tf = require('@tensorflow/tfjs-node');
-const { Data, difficulty } = require('./data');
+const { Data, tags, animals, facilities } = require('./data');
 
 
 /**
@@ -59,12 +59,9 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
   }
 
   // Feature extraction for number data
-  if (!Array.isArray(numberCategorySizes)) {
-    numberCategorySizes = [numberCategorySizes];
-  }
   numberCategoricalInputs = [];
   numberCategoricalDenses = [];
-  for (let i = 0; i < numberCategorySizes.length; ++i) {
+  for (let i = 0; i < numberCategorySizes; ++i) {
     const categoricalInput = tf.input({ shape: [1] });
     numberCategoricalInputs.push(categoricalInput);
     numberCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(categoricalInput));
@@ -145,8 +142,8 @@ async function generatePath(model, data, reqBody, temperature) {
 
     await input.data().then(data => console.log("input", data));
 
-    const output = model.predict([input, tf.tensor2d([Data.textToTags(desc)]), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
-
+    console.log(Data.textToTags(desc, tags), Data.textToTags(desc, animals), Data.textToTags(desc, facilities));
+    const output = model.predict([input, tf.tensor2d([Data.textToTags(desc, tags)]), tf.tensor2d([Data.textToTags(desc, animals)]), tf.tensor2d([Data.textToTags(desc, facilities)]), tf.tensor1d([parseInt(d)/10]), tf.tensor1d([parseInt(v)/10])]);
     await output.data().then(data => console.log("output", data));
 
     // Sample randomly based on the probability values.

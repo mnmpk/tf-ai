@@ -17,13 +17,20 @@ const trails = [
     {
         difficulty: 1,
         landscape: 3,
-        description: "this is a beautiful trial with sea view, very easy to access.",
+        description: `位於香港仔郊野公園內有香港仔上下水塘，後者建於1890年，本為大成紙廠私人興建，至1929年政府為增加香港仔和鴨脷洲一帶的供水量，向紙廠購買水塘，再在其上游興建香港仔上水塘，並在1932年完成兩個水塘的修築及重建工程。水塘內的林道寬闊，從漁光道巴士站下車，沿香港仔水塘道上坡，不用多時已可看見橫臥於山林中的上水塘水壩。之後可一邊欣賞下水塘風景，一邊沿林蔭路進發，便可到達終點上水塘水壩，探索已列為法定古蹟的石橋、水掣房和水壩。香港仔水塘林道沿途會經過香港仔傷健樂園，裡面有小食亭、無障礙燒烤場及洗手間等設施，可作為補給站或午餐的好地方。
+        注意事項:
+        1) 由漁光村海鷗樓巴士站至香港仔郊野公園閘口 (郊野公園界外)路段比較斜，建議活動能力受障人士要有同行者陪同或直接乘的士到閘口出發。
+        2) 郊野公園內斜度為約1:8-1:5 (7-10 度)。
+        3) 沿途有野豬出沒，請勿餵飼。一般情況下，野豬都會避開遊人。但當野豬受挑釁或受驚後有可能會作出攻擊行為，特別是帶有幼豬的母豬及成年雄豬。
+        4) 折返點為香港仔上水塘石橋尾。
+        5) 如需為電動輪椅充電，可於辦公時間到香港仔樹木廊或郊野公園管理站向漁護署職員尋求協助。
+        6) 其他注意事項及經驗分享：綠洲/ Trailwatch /Wheel Power Challenge`,
         route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 1], [9, 1]],
     },
     {
         difficulty: 2,
         landscape: 5,
-        description: "Very long trail!",
+        description: "香港仔自然教育徑初段環繞香港仔下水塘而行，平坦易走。香港仔下水塘原是一家紙廠的私人水塘，其後為配合香港仔河谷供水計劃而被當時政府接管及改建，並於1932年重新啟用。走上自然教育徑，沿途除可遠眺香港仔避風塘的怡人景色外，亦能窺看融合中國宮廷和意大利的建築風格的天主教修道院，更有機會見到不少有趣的動植物，如作為「廿四味」成份之一的淡竹葉、用作包糭子的水銀竹，以及遨翔天際的黑鳶等。自然教育徑末段可找到俗稱「天花墩」的舊式量雨器，以及已被列為法定古蹟的上水塘水壩，絕對不可錯過呢！",
         route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
     },
     {
@@ -42,13 +49,13 @@ const trails = [
         difficulty: 3,
         landscape: 1,
         description: "This is a challenging trial with deep slope.",
-        route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [6, 4], [7, 4],[7, 3], [7, 2], [8, 2], [8, 1], [9, 1]],
+        route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [6, 4], [7, 4], [7, 3], [7, 2], [8, 2], [8, 1], [9, 1]],
     },
 ]
 
-const difficulty = [0, 1, 2, 3, 4, 5];
-const landscape = [0, 1, 2, 3, 4, 5];
-const tags = ["sea", "hill", "river", "plant", "animal", "monkey", "deep", "beautiful"];
+const tags = ["", "古蹟", "水塘", "水壩"];
+const animals = ["", "野豬", "幼豬", "母豬", "雄豬"];
+const facilities = ["", "電動輪椅", "充電", "無障礙", "燒烤場", "洗手間", "小食亭"];
 
 class Data {
 
@@ -77,21 +84,23 @@ class Data {
     decode(i) {
         return this.routesIndices[i];
     }
-    static preprocessText(text){
-        if(text)
-            return text.replace(/[^a-zA-Z ]/g, "").toLowerCase();
+    static preprocessText(text) {
+        if (text)
+            return text.toLowerCase();
         return "";
     }
-    static encodeTags(ts) {
-        let t = new Array(tags.length).fill(0);
+    static encodeTags(ts, catTags) {
+        let t = new Array(catTags.length).fill(0);
         ts.forEach(tag => {
-            if (tag)
-                t[tags.indexOf(tag)] = 1;
+            //TODO: find proper encode method
+            //if (tag)
+            //    t[catTags.indexOf(tag)] = 1;
         });
         return t;
     }
-    static textToTags(text){
-        return Data.encodeTags(tags.map(tag => Data.preprocessText(text).indexOf(tag) >= 0 ? tag : null));
+    static textToTags(text, catTags) {
+        const tags = catTags.map(tag => Data.preprocessText(text).indexOf(tag) >= 0 ? tag : null);
+        return Data.encodeTags(tags, catTags);
     }
     async prepareData(examplePerRoute) {
         let input = new tf.TensorBuffer([
@@ -101,6 +110,8 @@ class Data {
         let difficultyInput = [];
         let landscapeInput = [];
         let tagsInput = [];
+        let animalsTagsInput = [];
+        let facilitiesTagsInput = [];
 
         this.trails.forEach((trail, ti) => {
             let randomList = [];
@@ -120,15 +131,18 @@ class Data {
                 const targetPointIndex = routeStartIndex + this.rememberLen;
                 console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + trail.route[targetPointIndex]);
                 label.set(1, i, this.encode(Data.conv2Value(trail.route[targetPointIndex])));
-                difficultyInput.push(trail.difficulty);
-                landscapeInput.push(trail.landscape);
-                tagsInput.push(Data.textToTags(trail.description));
+                difficultyInput.push(trail.difficulty/10);
+                landscapeInput.push(trail.landscape/10);
+                tagsInput.push(Data.textToTags(trail.description, tags));
+                animalsTagsInput.push(Data.textToTags(trail.description, animals));
+                facilitiesTagsInput.push(Data.textToTags(trail.description, facilities));
             }
         });
-        return { input: [input.toTensor(), tf.tensor2d(tagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
+        console.log(tagsInput, animalsTagsInput, facilitiesTagsInput);
+        return { input: [input.toTensor(), tf.tensor2d(tagsInput), tf.tensor2d(animalsTagsInput), tf.tensor2d(facilitiesTagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
     }
 }
 
 
 
-module.exports = { map, trails, tags, difficulty, landscape, Data }
+module.exports = { map, trails, tags, animals, facilities, Data }

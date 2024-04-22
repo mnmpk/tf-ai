@@ -3,7 +3,7 @@ const tf = require('@tensorflow/tfjs-node');
 const fs = require("fs");
 const modelPath = './prediction';
 const { createModel, compileModel, fitModel, generatePath } = require('./model');
-const { trails, Data, tags, difficulty, landscape } = require('./data');
+const { trails, Data, tags, animals, facilities, difficulty, landscape } = require('./data');
 
 const rememberLen = 2;
 const data = new Data(trails, rememberLen);
@@ -23,9 +23,9 @@ const predict = (async (req, res) => {
 })
 
 async function train() {
-    const model = createModel(rememberLen, data.pointLen, [64,128], tags.length, [difficulty.length, landscape.length]);
+    const model = createModel(rememberLen, data.pointLen, [64,128], [tags.length, animals.length, facilities.length], 2);
     compileModel(model, 1e-2);
-    const d = await data.prepareData(300);
+    const d = await data.prepareData(100);
     await fitModel(
         model, d, 300, 128, 0.0625,
         {
