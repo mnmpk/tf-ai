@@ -25,7 +25,7 @@ const predict = (async (req, res) => {
 async function train() {
     const model = createModel(rememberLen, data.pointLen, [64,128], [tags.length, animals.length, facilities.length], 2);
     compileModel(model, 1e-2);
-    const d = await data.prepareData(100);
+    const d = await data.prepareData(200);
     await fitModel(
         model, d, 300, 128, 0.0625,
         {
