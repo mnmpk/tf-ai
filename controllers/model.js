@@ -1,7 +1,6 @@
 const tf = require('@tensorflow/tfjs-node');
 const { Data, tags, animals, facilities } = require('./data');
 
-
 /**
  * Create a model for next-character prediction.
  * @param {number} sampleLen Sampling length: how many characters form the
@@ -49,8 +48,8 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
   stringCategoricalInputs = [];
   stringCategoricalDenses = [];
   for (let i = 0; i < stringCategorySizes.length; ++i) {
-    
-    const categoricalInput = tf.input({ shape: [stringCategorySizes[i]]/*max input size*/ });
+
+    const categoricalInput = tf.input({ shape: [stringCategorySizes[i], 100]/*max input size*/ });
     // Embedding for categorical data
     const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i] /*possible tag size */, outputDim: 32 }).apply(categoricalInput);
     const flatten = tf.layers.flatten().apply(embedding);
@@ -142,8 +141,13 @@ async function generatePath(model, data, reqBody, temperature) {
 
     await input.data().then(data => console.log("input", data));
 
-    console.log(Data.textToTags(desc, tags), Data.textToTags(desc, animals), Data.textToTags(desc, facilities));
-    const output = model.predict([input, tf.tensor2d([Data.textToTags(desc, tags)]), tf.tensor2d([Data.textToTags(desc, animals)]), tf.tensor2d([Data.textToTags(desc, facilities)]), tf.tensor1d([parseInt(d)/10]), tf.tensor1d([parseInt(v)/10])]);
+    const Segmenter = require('node-analyzer');
+    const segmenter = new Segmenter();
+    let arr = new Array(500).fill(new Array(100).fill(0));
+    let vec = data.model.getVectors(segmenter.analyze(desc));
+    arr = Object.assign(arr, vec.map(v => v.values));
+
+    const output = model.predict([input, tf.tensor3d([arr]), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
     await output.data().then(data => console.log("output", data));
 
     // Sample randomly based on the probability values.

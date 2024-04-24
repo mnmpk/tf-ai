@@ -1,4 +1,9 @@
+const fs = require('node:fs');
+
 const tf = require('@tensorflow/tfjs-node');
+const w2v = require('word2vec');
+const Segmenter = require('node-analyzer');
+const segmenter = new Segmenter();
 
 const map = [
     [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -27,7 +32,7 @@ const trails = [
         6) 其他注意事項及經驗分享：綠洲/ Trailwatch /Wheel Power Challenge`,
         route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 1], [9, 1]],
     },
-    {
+    /*{
         difficulty: 2,
         landscape: 5,
         description: "香港仔自然教育徑初段環繞香港仔下水塘而行，平坦易走。香港仔下水塘原是一家紙廠的私人水塘，其後為配合香港仔河谷供水計劃而被當時政府接管及改建，並於1932年重新啟用。走上自然教育徑，沿途除可遠眺香港仔避風塘的怡人景色外，亦能窺看融合中國宮廷和意大利的建築風格的天主教修道院，更有機會見到不少有趣的動植物，如作為「廿四味」成份之一的淡竹葉、用作包糭子的水銀竹，以及遨翔天際的黑鳶等。自然教育徑末段可找到俗稱「天花墩」的舊式量雨器，以及已被列為法定古蹟的上水塘水壩，絕對不可錯過呢！",
@@ -50,12 +55,28 @@ const trails = [
         landscape: 1,
         description: "This is a challenging trial with deep slope.",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [6, 4], [7, 4], [7, 3], [7, 2], [8, 2], [8, 1], [9, 1]],
-    },
+    },*/
 ]
 
-const tags = ["", "古蹟", "水塘", "水壩"];
-const animals = ["", "野豬", "幼豬", "母豬", "雄豬"];
-const facilities = ["", "電動輪椅", "充電", "無障礙", "燒烤場", "洗手間", "小食亭"];
+/*w2v.loadModel("prediction/tags_processed.txt",( error, model )=>{
+    console.log(model);
+    var t = model.getVectors( "free".split(" ") );
+    console.log(t);
+});*/
+
+let content = "";
+trails.forEach((trail, ti) => {
+    content+=segmenter.analyze(trail.description);
+});
+
+try {
+    console.log(content);
+    fs.writeFileSync("prediction/tags.txt", content, { flag: 'wx' });
+    // file written successfully
+} catch (err) {
+    console.error(err);
+}
+
 
 class Data {
 
@@ -70,6 +91,10 @@ class Data {
             });
         });
         this.pointLen = this.routesIndices.length;
+        w2v.word2vec("prediction/tags.txt", "prediction/tags_processed.txt");
+        w2v.loadModel("prediction/tags_processed.txt", (error, m) => {
+            this.model = m;
+        });
     }
 
     static conv2Coordinate(v) {
@@ -110,8 +135,6 @@ class Data {
         let difficultyInput = [];
         let landscapeInput = [];
         let tagsInput = [];
-        let animalsTagsInput = [];
-        let facilitiesTagsInput = [];
 
         this.trails.forEach((trail, ti) => {
             let randomList = [];
@@ -131,18 +154,23 @@ class Data {
                 const targetPointIndex = routeStartIndex + this.rememberLen;
                 console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + trail.route[targetPointIndex]);
                 label.set(1, i, this.encode(Data.conv2Value(trail.route[targetPointIndex])));
-                difficultyInput.push(trail.difficulty/10);
-                landscapeInput.push(trail.landscape/10);
-                tagsInput.push(Data.textToTags(trail.description, tags));
-                animalsTagsInput.push(Data.textToTags(trail.description, animals));
-                facilitiesTagsInput.push(Data.textToTags(trail.description, facilities));
+                difficultyInput.push(trail.difficulty);
+                landscapeInput.push(trail.landscape);
+
+                let arr = new Array(500).fill(new Array(100).fill(0));
+                let vec = this.model.getVectors(segmenter.analyze(trail.description));
+                arr = Object.assign(arr, vec.map(v=>v.values));
+                tagsInput.push(arr);
+
             }
         });
-        console.log(tagsInput, animalsTagsInput, facilitiesTagsInput);
-        return { input: [input.toTensor(), tf.tensor2d(tagsInput), tf.tensor2d(animalsTagsInput), tf.tensor2d(facilitiesTagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
+
+        //console.log(tagsInput);
+
+        return { input: [input.toTensor(), tf.tensor3d(tagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
     }
 }
 
 
 
-module.exports = { map, trails, tags, animals, facilities, Data }
+module.exports = { map, trails, Data }
