@@ -6,7 +6,8 @@ const { createModel, compileModel, fitModel, generatePath } = require('./model')
 const { trails, Data } = require('./data');
 
 const rememberLen = 2;
-const data = new Data(trails, rememberLen);
+const textMaxLength = 200;
+const data = new Data(trails, rememberLen, textMaxLength);
 
 const predict = (async (req, res) => {
     console.log("Load an existing model");
@@ -23,7 +24,7 @@ const predict = (async (req, res) => {
 })
 
 async function train() {
-    const model = createModel(rememberLen, data.pointLen, [64,128], 500, 2);
+    const model = createModel(rememberLen, data.pointLen, [64, 128], { maxLen: textMaxLength, embeddingSize: parseInt(data.model.size) }, 2);
     compileModel(model, 1e-2);
     const d = await data.prepareData(200);
     await fitModel(

@@ -20,7 +20,7 @@ const map = [
 
 const trails = [
     {
-        difficulty: 1,
+        difficulty: 3,//1,
         landscape: 3,
         description: `位於香港仔郊野公園內有香港仔上下水塘，後者建於1890年，本為大成紙廠私人興建，至1929年政府為增加香港仔和鴨脷洲一帶的供水量，向紙廠購買水塘，再在其上游興建香港仔上水塘，並在1932年完成兩個水塘的修築及重建工程。水塘內的林道寬闊，從漁光道巴士站下車，沿香港仔水塘道上坡，不用多時已可看見橫臥於山林中的上水塘水壩。之後可一邊欣賞下水塘風景，一邊沿林蔭路進發，便可到達終點上水塘水壩，探索已列為法定古蹟的石橋、水掣房和水壩。香港仔水塘林道沿途會經過香港仔傷健樂園，裡面有小食亭、無障礙燒烤場及洗手間等設施，可作為補給站或午餐的好地方。
         注意事項:
@@ -32,41 +32,41 @@ const trails = [
         6) 其他注意事項及經驗分享：綠洲/ Trailwatch /Wheel Power Challenge`,
         route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2], [8, 1], [9, 1]],
     },
-    /*{
-        difficulty: 2,
-        landscape: 5,
+    {
+        difficulty: 3,//2,
+        landscape: 3,//5,
         description: "香港仔自然教育徑初段環繞香港仔下水塘而行，平坦易走。香港仔下水塘原是一家紙廠的私人水塘，其後為配合香港仔河谷供水計劃而被當時政府接管及改建，並於1932年重新啟用。走上自然教育徑，沿途除可遠眺香港仔避風塘的怡人景色外，亦能窺看融合中國宮廷和意大利的建築風格的天主教修道院，更有機會見到不少有趣的動植物，如作為「廿四味」成份之一的淡竹葉、用作包糭子的水銀竹，以及遨翔天際的黑鳶等。自然教育徑末段可找到俗稱「天花墩」的舊式量雨器，以及已被列為法定古蹟的上水塘水壩，絕對不可錯過呢！",
         route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
     },
     {
-        difficulty: 5,
-        landscape: 4,
+        difficulty: 3,//5,
+        landscape: 3,//4,
         description: "Good conditioned route with good hill view. But many monkey.",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [3, 6], [3, 7], [2, 7], [2, 8], [2, 9]],
     },
     {
-        difficulty: 4,
-        landscape: 5,
+        difficulty: 3,//4,
+        landscape: 3,//5,
         description: "Valuable hill & sea view, high difficulty, but it worth!",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
     },
     {
         difficulty: 3,
-        landscape: 1,
+        landscape: 3,//1,
         description: "This is a challenging trial with deep slope.",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [6, 4], [7, 4], [7, 3], [7, 2], [8, 2], [8, 1], [9, 1]],
-    },*/
+    },
 ]
 
-/*w2v.loadModel("prediction/tags_processed.txt",( error, model )=>{
+w2v.loadModel("prediction/tags_processed.txt", (error, model) => {
     console.log(model);
-    var t = model.getVectors( "free".split(" ") );
+    var t = model.getVectors("free".split(" "));
     console.log(t);
-});*/
+});
 
 let content = "";
 trails.forEach((trail, ti) => {
-    content+=segmenter.analyze(trail.description);
+    content += segmenter.analyze(trail.description);
 });
 
 try {
@@ -80,7 +80,8 @@ try {
 
 class Data {
 
-    constructor(trails, rememberLen) {
+    constructor(trails, rememberLen, textMaxLength) {
+        this.textMaxLength = textMaxLength;
         this.trails = trails;
         this.rememberLen = rememberLen;
         this.routesIndices = [];
@@ -91,7 +92,7 @@ class Data {
             });
         });
         this.pointLen = this.routesIndices.length;
-        w2v.word2vec("prediction/tags.txt", "prediction/tags_processed.txt");
+        w2v.word2vec("prediction/tags.txt", "prediction/tags_processed.txt", { size: 32, minCount: 1 });
         w2v.loadModel("prediction/tags_processed.txt", (error, m) => {
             this.model = m;
         });
@@ -157,9 +158,9 @@ class Data {
                 difficultyInput.push(trail.difficulty);
                 landscapeInput.push(trail.landscape);
 
-                let arr = new Array(500).fill(new Array(100).fill(0));
+                let arr = new Array(this.textMaxLength).fill(new Array(parseInt(this.model.size)).fill(0));
                 let vec = this.model.getVectors(segmenter.analyze(trail.description));
-                arr = Object.assign(arr, vec.map(v=>v.values));
+                arr = Object.assign(arr, vec.map(v => v.values));
                 tagsInput.push(arr);
 
             }

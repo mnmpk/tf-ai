@@ -49,9 +49,9 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
   stringCategoricalDenses = [];
   for (let i = 0; i < stringCategorySizes.length; ++i) {
 
-    const categoricalInput = tf.input({ shape: [stringCategorySizes[i], 100]/*max input size*/ });
+    const categoricalInput = tf.input({ shape: [stringCategorySizes[i].maxLen, stringCategorySizes[i].embeddingSize]/*max input size*/ });
     // Embedding for categorical data
-    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i] /*possible tag size */, outputDim: 32 }).apply(categoricalInput);
+    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].maxLen , outputDim: 32 }).apply(categoricalInput);
     const flatten = tf.layers.flatten().apply(embedding);
     stringCategoricalInputs.push(categoricalInput);
     stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
@@ -143,8 +143,9 @@ async function generatePath(model, data, reqBody, temperature) {
 
     const Segmenter = require('node-analyzer');
     const segmenter = new Segmenter();
-    let arr = new Array(500).fill(new Array(100).fill(0));
-    let vec = data.model.getVectors(segmenter.analyze(desc));
+    let arr = new Array(data.textMaxLength).fill(new Array(parseInt(data.model.size)).fill(0));
+    console.log(segmenter.analyze(desc)||desc);
+    let vec = data.model.getVectors(segmenter.analyze(desc)||desc);
     arr = Object.assign(arr, vec.map(v => v.values));
 
     const output = model.predict([input, tf.tensor3d([arr]), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
