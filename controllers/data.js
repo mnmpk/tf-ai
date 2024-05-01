@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 
 const tf = require('@tensorflow/tfjs-node');
-const w2v = require('word2vec');
+//const w2v = require('word2vec');
 
 const map = [
     [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -92,10 +92,10 @@ class Data {
             console.error(err);
         }
 
-        w2v.word2vec("prediction/tags.txt", "prediction/tags_processed.txt", { size: 32, minCount: 1 });
-        w2v.loadModel("prediction/tags_processed.txt", (error, m) => {
-            this.model = m;
-        });
+        //w2v.word2vec("prediction/tags.txt", "prediction/tags_processed.txt", { size: 32, minCount: 1 });
+        //w2v.loadModel("prediction/tags_processed.txt", (error, m) => {
+        //    this.model = m;
+        //});
     }
 
     static conv2Coordinate(v) {
@@ -112,7 +112,7 @@ class Data {
     }
     textToTags(text) {
         const t = text.toLowerCase();
-        const tags = this.tags.map(tag => t.indexOf(tag.toLowerCase()) >= 0 ? tag : null).filter(t => t);
+        const tags = this.tags.map(tag => t.indexOf(tag.toLowerCase()) >= 0 ? tag : null).filter((value, index, array) => value && array.indexOf(value) === index);
         return tags;
     }
     textToVec(text) {
@@ -170,18 +170,17 @@ class Data {
                 difficultyInput.push(trail.difficulty);
                 landscapeInput.push(trail.landscape);
 
-
                 const tagIndex = randomList2[(i % examplePerRoute) % randomList2.length];
                 //let arr = new Array(this.textMaxLength).fill(new Array(parseInt(this.model.size)).fill(0));
                 //let arr = new Array(parseInt(this.model.size)).fill(0);
                 //console.log(vec);
                 //arr = Object.assign(arr, vec.map(v => v.values));
                 //tagsInput.push(vec[tagIndex].values);
-                tagsInput.push(oneHot[tagIndex]);
+                tagsInput.push(oneHot[tagIndex]||new Array(parseInt(this.tags.length)).fill(0));
             }
         });
 
-        //console.log(tagsInput);
+        console.log(tagsInput);
 
         return { input: [input.toTensor(), tf.tensor2d(tagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
     }

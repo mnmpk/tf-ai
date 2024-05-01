@@ -1,5 +1,5 @@
 const tf = require('@tensorflow/tfjs-node');
-const { Data, tags, animals, facilities } = require('./data');
+const { Data } = require('./data');
 
 /**
  * Create a model for next-character prediction.
@@ -51,12 +51,15 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
     const categoricalInput = tf.input({ shape: stringCategorySizes[i].embeddingSize/*max input size*/ });
     //const categoricalInput = tf.input({ shape: [stringCategorySizes[i].maxLen, stringCategorySizes[i].embeddingSize]/*max input size*/ });
     // Embedding for categorical data
-    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].embeddingSize , outputDim: 32 }).apply(categoricalInput);
+    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].embeddingSize, outputDim: 32 }).apply(categoricalInput);
     //const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].maxLen , outputDim: 32 }).apply(categoricalInput);
     const flatten = tf.layers.flatten().apply(embedding);
     stringCategoricalInputs.push(categoricalInput);
+    //stringCategoricalDenses.push(flatten);
     //stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
     stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'softmax' }).apply(flatten));
+    //stringCategoricalDenses.push(tf.layers.dense({ units: 1}).apply(flatten));
+    //stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'softmax' }).apply(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten)));
   }
 
   // Feature extraction for number data
@@ -154,9 +157,9 @@ async function generatePath(model, data, reqBody, temperature) {
     //let vec = data.textToVec(desc);
     //arr = Object.assign(arr, vec.map(v => v.values));
     //let arr = vec.map(v => v.values);
-    if(!arr.length) arr=[new Array(data.tags.length).fill(0)];
+    if (!arr.length) arr = [new Array(data.tags.length).fill(0)];
     console.log(arr, data.tags.length);
-      //arr = [new Array(parseInt(data.model.size)).fill(0)];
+    //arr = [new Array(parseInt(data.model.size)).fill(0)];
     //arr = Object.assign(arr, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const output = model.predict([input, tf.tensor2d(arr), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
     //await output.data().then(data => console.log("output", data));

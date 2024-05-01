@@ -17,7 +17,7 @@ const predict = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        let result = await generatePath(model, data, req.body, 0.8);
+        let result = await generatePath(model, data, req.body, 0.5);
         result = result.map(v => Data.conv2Coordinate(v));
         res.send(result);
     }
@@ -28,7 +28,7 @@ async function train() {
     compileModel(model, 1e-2);
     const d = await data.prepareData(1000);
     await fitModel(
-        model, d, 500, 128, 0.0625,
+        model, d, 100, 128, 0.0625,
         {
             onBatchEnd: async (batch, logs) => {
             },
