@@ -118,6 +118,16 @@ class Data {
     textToVec(text) {
         return this.model.getVectors(this.textToTags(text));
     }
+    textToOneHot(text){
+        let temp =[];
+        let tags = this.textToTags(text);
+        tags.forEach(t=>{
+             let v = new Array(this.tags.length).fill(0);
+             v[this.tags.indexOf(t)]=1;
+             temp.push(v);
+        });
+        return temp;
+    }
     async prepareData(examplePerRoute) {
         let input = new tf.TensorBuffer([
             this.trails.length * examplePerRoute, this.rememberLen, this.pointLen]);
@@ -135,6 +145,18 @@ class Data {
                 randomList.push(i);
             }
             tf.util.shuffle(randomList);
+
+
+            //let vec = this.textToVec(trail.description);
+            let oneHot = this.textToOneHot(trail.description);
+            let randomList2 = [];
+            for (let i = 0;
+                i < oneHot.length ;
+                i++) {
+                    randomList2.push(i);
+            }
+            tf.util.shuffle(randomList2);
+
             for (let i = ti * examplePerRoute; i < ti * examplePerRoute + examplePerRoute; i++) {
                 const routeStartIndex = randomList[(i % examplePerRoute) % randomList.length];
                 for (let j = 0; j < this.rememberLen; j++) {
@@ -148,25 +170,20 @@ class Data {
                 difficultyInput.push(trail.difficulty);
                 landscapeInput.push(trail.landscape);
 
-                let arr = new Array(this.textMaxLength).fill(new Array(parseInt(this.model.size)).fill(0));
+
+                const tagIndex = randomList2[(i % examplePerRoute) % randomList2.length];
+                //let arr = new Array(this.textMaxLength).fill(new Array(parseInt(this.model.size)).fill(0));
                 //let arr = new Array(parseInt(this.model.size)).fill(0);
-                let vec = this.textToVec(trail.description);
                 //console.log(vec);
-                arr = Object.assign(arr, vec.map(v => v.values));
-                /*if (ti == 0) {
-                    arr = Object.assign(arr, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-                }
-                else {
-                }*/
-                tagsInput.push(arr);
-
-
+                //arr = Object.assign(arr, vec.map(v => v.values));
+                //tagsInput.push(vec[tagIndex].values);
+                tagsInput.push(oneHot[tagIndex]);
             }
         });
 
         //console.log(tagsInput);
 
-        return { input: [input.toTensor(), tf.tensor3d(tagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
+        return { input: [input.toTensor(), tf.tensor2d(tagsInput), tf.tensor1d(difficultyInput), tf.tensor1d(landscapeInput)], label: label.toTensor() };
     }
 }
 
