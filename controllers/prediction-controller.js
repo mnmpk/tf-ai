@@ -17,18 +17,18 @@ const predict = (async (req, res) => {
         model = await train();
     }
     if (model) {
-        let result = await generatePath(model, data, req.body, 1.0);
+        let result = await generatePath(model, data, req.body, 0.8);
         result = result.map(v => Data.conv2Coordinate(v));
         res.send(result);
     }
 })
 
 async function train() {
-    const model = createModel(rememberLen, data.pointLen, [64, 128], { maxLen: textMaxLength, embeddingSize: parseInt(data.model.size) }, 2);
+    const model = createModel(rememberLen, data.pointLen, [64, 128], { maxLen: textMaxLength, embeddingSize: data.tags.length/*parseInt(data.model.size)*/ }, 2);
     compileModel(model, 1e-2);
-    const d = await data.prepareData(200);
+    const d = await data.prepareData(1000);
     await fitModel(
-        model, d, 300, 128, 0.0625,
+        model, d, 500, 128, 0.0625,
         {
             onBatchEnd: async (batch, logs) => {
             },

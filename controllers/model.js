@@ -48,14 +48,15 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
   stringCategoricalInputs = [];
   stringCategoricalDenses = [];
   for (let i = 0; i < stringCategorySizes.length; ++i) {
-
-    const categoricalInput = tf.input({ shape: [stringCategorySizes[i].maxLen, stringCategorySizes[i].embeddingSize]/*max input size*/ });
+    const categoricalInput = tf.input({ shape: stringCategorySizes[i].embeddingSize/*max input size*/ });
+    //const categoricalInput = tf.input({ shape: [stringCategorySizes[i].maxLen, stringCategorySizes[i].embeddingSize]/*max input size*/ });
     // Embedding for categorical data
-    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].maxLen , outputDim: 32 }).apply(categoricalInput);
+    const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].embeddingSize , outputDim: 32 }).apply(categoricalInput);
+    //const embedding = tf.layers.embedding({ inputDim: stringCategorySizes[i].maxLen , outputDim: 32 }).apply(categoricalInput);
     const flatten = tf.layers.flatten().apply(embedding);
     stringCategoricalInputs.push(categoricalInput);
-    stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
-    //stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'softmax' }).apply(flatten));
+    //stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
+    stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'softmax' }).apply(flatten));
   }
 
   // Feature extraction for number data
@@ -64,7 +65,8 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
   for (let i = 0; i < numberCategorySizes; ++i) {
     const categoricalInput = tf.input({ shape: [1] });
     numberCategoricalInputs.push(categoricalInput);
-    numberCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(categoricalInput));
+    //numberCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(categoricalInput));
+    numberCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'softmax' }).apply(categoricalInput));
   }
 
 
@@ -142,16 +144,21 @@ async function generatePath(model, data, reqBody, temperature) {
 
     //await input.data().then(data => console.log("input", data));
 
-    const Segmenter = require('node-analyzer');
-    const segmenter = new Segmenter();
-    let arr = new Array(data.textMaxLength).fill(new Array(parseInt(data.model.size)).fill(0));
+    //const Segmenter = require('node-analyzer');
+    //const segmenter = new Segmenter();
+    //let arr = new Array(data.textMaxLength).fill(new Array(parseInt(data.model.size)).fill(0));
     //let arr = new Array(parseInt(data.model.size)).fill(0);
 
-    let vec = data.textToVec(desc);
-    arr = Object.assign(arr, vec.map(v => v.values));
-    console.log(arr);
+    let oneHot = data.textToOneHot(desc);
+    let arr = oneHot;
+    //let vec = data.textToVec(desc);
+    //arr = Object.assign(arr, vec.map(v => v.values));
+    //let arr = vec.map(v => v.values);
+    if(!arr.length) arr=[new Array(data.tags.length).fill(0)];
+    console.log(arr, data.tags.length);
+      //arr = [new Array(parseInt(data.model.size)).fill(0)];
     //arr = Object.assign(arr, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-    const output = model.predict([input, tf.tensor3d([arr]), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
+    const output = model.predict([input, tf.tensor2d(arr), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
     //await output.data().then(data => console.log("output", data));
 
     // Sample randomly based on the probability values.
