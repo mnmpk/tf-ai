@@ -55,6 +55,7 @@ function createModel(sampleLen, charSetSize, lstmLayerSizes, stringCategorySizes
     const flatten = tf.layers.flatten().apply(embedding);
     stringCategoricalInputs.push(categoricalInput);
     stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(flatten));
+    //stringCategoricalDenses.push(tf.layers.dense({ units: 1, activation: 'softmax' }).apply(flatten));
   }
 
   // Feature extraction for number data
@@ -139,17 +140,19 @@ async function generatePath(model, data, reqBody, temperature) {
     }
     const input = inputBuffer.toTensor();
 
-    await input.data().then(data => console.log("input", data));
+    //await input.data().then(data => console.log("input", data));
 
     const Segmenter = require('node-analyzer');
     const segmenter = new Segmenter();
     let arr = new Array(data.textMaxLength).fill(new Array(parseInt(data.model.size)).fill(0));
-    console.log(segmenter.analyze(desc)||desc);
-    let vec = data.model.getVectors(segmenter.analyze(desc)||desc);
-    arr = Object.assign(arr, vec.map(v => v.values));
+    //let arr = new Array(parseInt(data.model.size)).fill(0);
 
+    let vec = data.textToVec(desc);
+    arr = Object.assign(arr, vec.map(v => v.values));
+    console.log(arr);
+    //arr = Object.assign(arr, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const output = model.predict([input, tf.tensor3d([arr]), tf.tensor1d([parseInt(d)]), tf.tensor1d([parseInt(v)])]);
-    await output.data().then(data => console.log("output", data));
+    //await output.data().then(data => console.log("output", data));
 
     // Sample randomly based on the probability values.
     const winnerIndex = sample(tf.squeeze(output), temperature);

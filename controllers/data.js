@@ -2,8 +2,6 @@ const fs = require('node:fs');
 
 const tf = require('@tensorflow/tfjs-node');
 const w2v = require('word2vec');
-const Segmenter = require('node-analyzer');
-const segmenter = new Segmenter();
 
 const map = [
     [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -58,13 +56,7 @@ const trails = [
     },
 ]
 
-w2v.loadModel("prediction/tags_processed.txt", (error, model) => {
-    console.log(model);
-    var t = model.getVectors("free".split(" "));
-    console.log(t);
-});
-
-let content = "";
+/*let content = "";
 trails.forEach((trail, ti) => {
     content += segmenter.analyze(trail.description);
 });
@@ -76,7 +68,7 @@ try {
 } catch (err) {
     console.error(err);
 }
-
+*/
 
 class Data {
 
@@ -92,6 +84,14 @@ class Data {
             });
         });
         this.pointLen = this.routesIndices.length;
+
+        try {
+            const data = fs.readFileSync('prediction/tags.txt', 'utf8');
+            this.tags = data.replaceAll("\n", " ").split(" ").filter(n => n);
+        } catch (err) {
+            console.error(err);
+        }
+
         w2v.word2vec("prediction/tags.txt", "prediction/tags_processed.txt", { size: 32, minCount: 1 });
         w2v.loadModel("prediction/tags_processed.txt", (error, m) => {
             this.model = m;
@@ -110,23 +110,13 @@ class Data {
     decode(i) {
         return this.routesIndices[i];
     }
-    static preprocessText(text) {
-        if (text)
-            return text.toLowerCase();
-        return "";
+    textToTags(text) {
+        const t = text.toLowerCase();
+        const tags = this.tags.map(tag => t.indexOf(tag.toLowerCase()) >= 0 ? tag : null).filter(t => t);
+        return tags;
     }
-    static encodeTags(ts, catTags) {
-        let t = new Array(catTags.length).fill(0);
-        ts.forEach(tag => {
-            //TODO: find proper encode method
-            //if (tag)
-            //    t[catTags.indexOf(tag)] = 1;
-        });
-        return t;
-    }
-    static textToTags(text, catTags) {
-        const tags = catTags.map(tag => Data.preprocessText(text).indexOf(tag) >= 0 ? tag : null);
-        return Data.encodeTags(tags, catTags);
+    textToVec(text) {
+        return this.model.getVectors(this.textToTags(text));
     }
     async prepareData(examplePerRoute) {
         let input = new tf.TensorBuffer([
@@ -159,9 +149,17 @@ class Data {
                 landscapeInput.push(trail.landscape);
 
                 let arr = new Array(this.textMaxLength).fill(new Array(parseInt(this.model.size)).fill(0));
-                let vec = this.model.getVectors(segmenter.analyze(trail.description));
+                //let arr = new Array(parseInt(this.model.size)).fill(0);
+                let vec = this.textToVec(trail.description);
+                //console.log(vec);
                 arr = Object.assign(arr, vec.map(v => v.values));
+                /*if (ti == 0) {
+                    arr = Object.assign(arr, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                }
+                else {
+                }*/
                 tagsInput.push(arr);
+
 
             }
         });
