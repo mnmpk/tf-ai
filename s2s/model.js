@@ -97,8 +97,8 @@ async function generatePath(model, data, reqBody) {
   let targetSeq = tf.buffer([1, 1, indicesSize]);
   // Populate the first character of the target sequence with the start
   // character.
-  targetSeq.set(1, 0, 0, data.encode(p));
-  console.log("input",targetSeq.toTensor().arraySync());
+  targetSeq.set(1, 0, 0, data.encode(parseInt(p)));
+  console.log("input", targetSeq.toTensor().arraySync());
 
   // Sample loop for a batch of sequences.
   // (to simplify, here we assume that a batch of size 1).
@@ -122,7 +122,7 @@ async function generatePath(model, data, reqBody) {
     decodedSentence.push(sampledChar);
     //console.log(sampledChar);
     // Exit condition: either hit max length or find stop character.
-    if (sampledChar === -2 ||
+    if (sampledChar === -1 ||
       decodedSentence.length > data.maxLength||
       decodedSentence.length > l) {
       stopCondition = true;

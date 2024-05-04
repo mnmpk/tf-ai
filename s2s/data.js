@@ -58,16 +58,17 @@ try {
 }*/
 class Data {
 
-    constructor(trails, textMaxSize) {
+    constructor(trails, textMaxSize, rememberSize) {
         this.textMaxSize = textMaxSize;
+        this.rememberSize = rememberSize;
         this.trails = trails;
-        this.routesIndices = [-1, -2];
+        this.routesIndices = [-1];
         this.maxLength = 0;
         this.trails.forEach((trail, i) => {
             if (trail.route.length > this.maxLength)
                 this.maxLength = trail.route.length;
             trail.route.forEach((p, i) => {
-                const v = (p[1] * 10) + p[0];
+                const v = Data.conv2Value(p);
                 if (this.routesIndices.indexOf(v) == -1) this.routesIndices.push(v);
             });
         });
@@ -86,12 +87,14 @@ class Data {
     }
 
     static conv2Coordinate(v) {
-        if (v < 0)
+        if(v<0)
             return [v];
         return [v % 10, Math.floor(v / 10)];
     }
     static conv2Value(c) {
-        if (c[0] < 0)
+        if(!c)
+            return -1;
+        if(c[0]<0)
             return c[0];
         return (c[1] * 10) + c[0];
     }
@@ -101,15 +104,15 @@ class Data {
     decode(i) {
         return this.routesIndices[i];
     }
-    async prepareData() {
+    async prepareData(examplePerRoute) {
         //let encorderInput = new tf.TensorBuffer([
         //    this.trails.length, this.textMaxSize, parseInt(this.w2vModel.size)]);
         let encorderInput = new tf.TensorBuffer([
-            this.trails.length, this.textMaxSize, this.vocab.length]);
+            this.trails.length * examplePerRoute, this.textMaxSize, this.vocab.length]);
 
         let decorderInput = new tf.TensorBuffer([
-            this.trails.length, this.maxLength, this.pointSize]);
-        let target = new tf.TensorBuffer([this.trails.length, this.maxLength, this.pointSize]);
+            this.trails.length * examplePerRoute, this.rememberSize, this.pointSize]);
+        let target = new tf.TensorBuffer([this.trails.length * examplePerRoute, this.rememberSize, this.pointSize]);
 
         this.trails.forEach((trail, ti) => {
 
@@ -122,17 +125,42 @@ class Data {
             //const words = segmenter.analyze(trail.description).split(" ");
             const words = trail.description.split(" ");
             //console.log(words);
-            words.forEach((w, i) => {
-                const index = this.vocab.indexOf(w.toLowerCase());
-                encorderInput.set(1, ti, i, index < 0 ? 0 : index);
-            });
-            const targetRoute = [[-1]].concat(trail.route).concat([[-2]]);
-            for (let i = 0; i < targetRoute.length; i++) {
-                decorderInput.set(1, ti, i, this.encode(Data.conv2Value(targetRoute[i])));
+            /*for (let i = 0; i < trail.route.length; i++) {
+                decorderInput.set(1, ti, i, this.encode(Data.conv2Value(trail.route[i])));
                 if (i > 0) {
-                    target.set(1, ti, i - 1, this.encode(Data.conv2Value(targetRoute[i])));
+                    target.set(1, ti, i - 1, this.encode(Data.conv2Value(trail.route[i])));
                 }
                 //console.log(targetRoute[i], Data.conv2Value(targetRoute[i]), this.encode(Data.conv2Value(targetRoute[i])));
+            }*/
+
+            let randomList = [];
+            for (let i = 0;
+                i < trail.route.length;
+                i++) {
+                randomList.push(i);
+            }
+            tf.util.shuffle(randomList);
+
+            const targetRoute = trail.route.concat([[-1]]);
+            for (let i = ti * examplePerRoute; i < ti * examplePerRoute + examplePerRoute; i++) {
+
+                words.forEach((w, j) => {
+                    const index = this.vocab.indexOf(w.toLowerCase());
+                    encorderInput.set(1, i, j, index < 0 ? 0 : index);
+                });
+                const routeStartIndex = randomList[(i % examplePerRoute) % randomList.length];
+                for (let j = 0; j < this.rememberSize; j++) {
+                    const routePointIndex = routeStartIndex + j;
+                    console.log("i:" + i, "j:" + j, "route point index:" + routePointIndex, "route point:" + targetRoute[routePointIndex]);
+                    decorderInput.set(1, i, j, this.encode(Data.conv2Value(targetRoute[routePointIndex])));
+                    if (j > 0) {
+                        console.log("i:", i, "j:", (j - 1), "target point index:" + routePointIndex, "target point:" + targetRoute[routePointIndex]);
+                        target.set(1, i, j - 1, this.encode(Data.conv2Value(targetRoute[routePointIndex])));
+                    }
+                }
+                /*const targetPointIndex = routeStartIndex + this.rememberSize;
+                console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + trail.route[targetPointIndex]);
+                label.set(1, i, this.encode(Data.conv2Value(trail.route[targetPointIndex])));*/
             }
         });
         console.log("encorderInput", encorderInput.toTensor().arraySync());

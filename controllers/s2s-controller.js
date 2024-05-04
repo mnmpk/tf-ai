@@ -5,8 +5,9 @@ const modelPath = './s2s/model';
 const { createModel, compileModel, fitModel, generatePath } = require('../s2s/model');
 const { trails, Data } = require('../s2s/data');
 
-const textMaxLength = 2;
-const data = new Data(trails, textMaxLength);
+const rememberSize = 2;
+const textMaxLength = 10;
+const data = new Data(trails, textMaxLength, rememberSize);
 
 const s2sPredict = (async (req, res) => {
     console.log("Load an existing model");
@@ -26,7 +27,7 @@ const s2sPredict = (async (req, res) => {
 async function train() {
     const model = createModel(textMaxLength, data.vocab.length/*, parseInt(data.w2vModel.size)*/, 32, data.pointSize);
     compileModel(model, 1e-2);
-    const d = await data.prepareData();
+    const d = await data.prepareData(1000);
     await fitModel(
         model, d, 300, 128, 0.0625,
         {
