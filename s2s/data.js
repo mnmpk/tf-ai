@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 
 const tf = require('@tensorflow/tfjs-node');
-const w2v = require('word2vec');
+//const w2v = require('word2vec');
 const Segmenter = require('node-analyzer');
 const segmenter = new Segmenter();
 
@@ -9,8 +9,7 @@ const trails = [
     {
         difficulty: 3,//1,
         landscape: 3,
-        description: `位於香港仔郊野公園內有香港仔上下水塘，後者建於1890年，本為大成紙廠私人興建，至1929年政府為增加香港仔和鴨脷洲一帶的供水量。
-        `,
+        description: `香港仔`,
         /*注意事項:
         1) 由漁光村海鷗樓巴士站至香港仔郊野公園閘口 (郊野公園界外)路段比較斜，建議活動能力受障人士要有同行者陪同或直接乘的士到閘口出發。
         2) 郊野公園內斜度為約1:8-1:5 (7-10 度)。
@@ -23,25 +22,25 @@ const trails = [
     {
         difficulty: 3,//2,
         landscape: 3,//5,
-        description: "香港仔自然教育徑初段環繞香港仔下水塘而行，平坦易走。香港仔下水塘原是一家紙廠的私人水塘",
+        description: "水塘",
         route: [[0, 0], [1, 0], [1, 1], [2, 1], [3, 1], [4, 1], [4, 2], [5, 2], [6, 2], [7, 2], [7, 3], [7, 4], [6, 4], [6, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
     },
     {
         difficulty: 3,//5,
         landscape: 3,//4,
-        description: "Good conditioned route with good hill view. But many monkey.",
+        description: "monkey",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [3, 6], [3, 7], [2, 7], [2, 8], [2, 9]],
     },
     {
         difficulty: 3,//4,
         landscape: 3,//5,
-        description: "Valuable hill & sea view, high difficulty, but it worth!",
+        description: "sea view",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [5, 6], [5, 7], [6, 7], [6, 8], [7, 8], [7, 9], [8, 9], [9, 9]],
     },
     {
         difficulty: 3,
         landscape: 3,//1,
-        description: "This is a challenging trial with deep slope.",
+        description: "challenging",
         route: [[0, 0], [1, 0], [1, 1], [1, 2], [1, 3], [0, 3], [0, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5], [6, 5], [6, 4], [7, 4], [7, 3], [7, 2], [8, 2], [8, 1], [9, 1]],
     },
 ];
@@ -62,10 +61,10 @@ class Data {
     constructor(trails, textMaxSize) {
         this.textMaxSize = textMaxSize;
         this.trails = trails;
-        this.routesIndices = [-1,-2];
+        this.routesIndices = [-1, -2];
         this.maxLength = 0;
         this.trails.forEach((trail, i) => {
-            if(trail.route.length>this.maxLength)
+            if (trail.route.length > this.maxLength)
                 this.maxLength = trail.route.length;
             trail.route.forEach((p, i) => {
                 const v = (p[1] * 10) + p[0];
@@ -73,19 +72,26 @@ class Data {
             });
         });
         this.pointSize = this.routesIndices.length;
-        w2v.word2vec("s2s/desc.txt", "s2s/dict.txt", { size: 32, minCount: 1 });
-        w2v.loadModel("s2s/dict.txt", (error, m) => {
-            this.w2vModel = m;
-        });
+        //w2v.word2vec("s2s/desc.txt", "s2s/dict.txt", { size: 32, minCount: 1 });
+        //w2v.loadModel("s2s/dict.txt", (error, m) => {
+        //    this.w2vModel = m;
+        //});
+
+        try {
+            const data = fs.readFileSync('s2s/desc.txt', 'utf8');
+            this.vocab = data.toLowerCase().replaceAll("\n", " ").split(" ").filter(n => n);
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     static conv2Coordinate(v) {
-        if(v<0)
+        if (v < 0)
             return [v];
         return [v % 10, Math.floor(v / 10)];
     }
     static conv2Value(c) {
-        if(c[0]<0)
+        if (c[0] < 0)
             return c[0];
         return (c[1] * 10) + c[0];
     }
@@ -96,8 +102,10 @@ class Data {
         return this.routesIndices[i];
     }
     async prepareData() {
+        //let encorderInput = new tf.TensorBuffer([
+        //    this.trails.length, this.textMaxSize, parseInt(this.w2vModel.size)]);
         let encorderInput = new tf.TensorBuffer([
-            this.trails.length, this.textMaxSize, parseInt(this.w2vModel.size)]);
+            this.trails.length, this.textMaxSize, this.vocab.length]);
 
         let decorderInput = new tf.TensorBuffer([
             this.trails.length, this.maxLength, this.pointSize]);
@@ -105,22 +113,31 @@ class Data {
 
         this.trails.forEach((trail, ti) => {
 
-            let descVec = new Array(parseInt(this.textMaxSize)).fill(new Array(parseInt(this.w2vModel.size)).fill(0));
+            //let descVec = new Array(parseInt(this.textMaxSize)).fill(new Array(parseInt(this.w2vModel.size)).fill(0));
             //descVec = Object.assign(descVec, this.w2vModel.getVectors(segmenter.analyze(trail.description)).map(v => v.values));
             //encorderInput.push(descVec);
-            this.w2vModel.getVectors(segmenter.analyze(trail.description)).map(v => v.values).forEach((v,i)=>{
-                encorderInput.set(1, ti, i, v);
+            //this.w2vModel.getVectors(segmenter.analyze(trail.description)).map(v => v.values).forEach((v,i)=>{
+            //    encorderInput.set(1, ti, i, v);
+            //});
+            //const words = segmenter.analyze(trail.description).split(" ");
+            const words = trail.description.split(" ");
+            //console.log(words);
+            words.forEach((w, i) => {
+                const index = this.vocab.indexOf(w.toLowerCase());
+                encorderInput.set(1, ti, i, index < 0 ? 0 : index);
             });
-
             const targetRoute = [[-1]].concat(trail.route).concat([[-2]]);
             for (let i = 0; i < targetRoute.length; i++) {
                 decorderInput.set(1, ti, i, this.encode(Data.conv2Value(targetRoute[i])));
-                if(i>0){
-                    target.set(1, ti, i-1, this.encode(Data.conv2Value(targetRoute[i])));
+                if (i > 0) {
+                    target.set(1, ti, i - 1, this.encode(Data.conv2Value(targetRoute[i])));
                 }
                 //console.log(targetRoute[i], Data.conv2Value(targetRoute[i]), this.encode(Data.conv2Value(targetRoute[i])));
             }
         });
+        console.log("encorderInput", encorderInput.toTensor().arraySync());
+        console.log("decorderInput", decorderInput.toTensor().arraySync());
+        console.log("target", target.toTensor().arraySync());
         return { input: [encorderInput.toTensor(), decorderInput.toTensor()], target: target.toTensor() };
     }
 }

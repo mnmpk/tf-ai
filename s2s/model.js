@@ -2,24 +2,30 @@ const tf = require('@tensorflow/tfjs-node');
 const { Data } = require('./data');
 
 function createModel(maxTextSize, embeddingSize, latentDim, pointSize) {
-  const embeddingInput = tf.input({ shape: [maxTextSize, embeddingSize] });
-  const embedding = tf.layers.embedding({ inputDim: embeddingSize, outputDim: 32 }).apply(embeddingInput);
-  const flatten = tf.layers.flatten().apply(embedding);
-  const dense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(embedding);
+  const embeddingInput = tf.input({
+    shape: [null, embeddingSize],
+    name: 'embeddingInput',
+  });
+  //const embedding = tf.layers.embedding({ inputDim: embeddingSize, outputDim: 32 }).apply(embeddingInput);
+  //const flatten = tf.layers.flatten().apply(embedding);
+  //const dense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(embedding);
   const encoder = tf.layers.lstm({
     units: latentDim,
     returnState: true,
+    name: 'encoderLstm',
   });
   const [, stateH, stateC] = encoder.apply(embeddingInput);
   const encoderStates = [stateH, stateC];
 
   const decoderInputs = tf.layers.input({
-    shape: [null, pointSize]
+    shape: [null, pointSize],
+    name: 'decoderInputs',
   });
   const decoderLstm = tf.layers.lstm({
     units: latentDim,
     returnSequences: true,
-    returnState: true
+    returnState: true,
+    name: 'decoderLstm',
   });
   const [decoderOutputs,] = decoderLstm.apply(
     [decoderInputs, ...encoderStates],
@@ -27,12 +33,14 @@ function createModel(maxTextSize, embeddingSize, latentDim, pointSize) {
   const decoderDense = tf.layers.dense({
     units: pointSize,
     activation: 'softmax',
+    name: 'decoderDense',
   });
   const decoderDenseOutputs = decoderDense.apply(decoderOutputs);
 
   const model = tf.model({
     inputs: [embeddingInput, decoderInputs],
     outputs: decoderDenseOutputs,
+    name: 'seq2seqModel',
   });
   return model;
 }
@@ -68,20 +76,29 @@ async function generatePath(model, data, reqBody) {
 
   const encoderModel = prepareEncoderModel(model);
   const decoderModel = prepareDecoderModel(model);
-  
+
   const { l, p, d, v, desc } = reqBody;
   const Segmenter = require('node-analyzer');
-    const segmenter = new Segmenter();
-    let arr = new Array(data.textMaxSize).fill(new Array(parseInt(data.w2vModel.size)).fill(0));
-    arr = Object.assign(arr, data.w2vModel.getVectors(segmenter.analyze(desc) || new Array(parseInt(data.w2vModel.size)).fill(0)).map(v => v.values));
-    
+  const segmenter = new Segmenter();
+  //let arr = new Array(data.textMaxSize).fill(new Array(parseInt(data.w2vModel.size)).fill(0));
+  //arr = Object.assign(arr, data.w2vModel.getVectors(segmenter.analyze(desc) || new Array(parseInt(data.w2vModel.size)).fill(0)).map(v => v.values));
+  //const words = segmenter.analyze(desc).split(" ");
+  const words = desc.split(" ");
+  let encorderInput = new tf.TensorBuffer([1, data.textMaxSize, data.vocab.length]);
+  words.forEach((w, i) => {
+    const index = data.vocab.indexOf(w.toLowerCase());
+    console.log(w, index);
+    encorderInput.set(1, 0, i, index>=0?index:0);
+  });
+  console.log("encorderInput",encorderInput.toTensor().dataSync());
   // Encode the inputs state vectors.
-  let statesValue = encoderModel.predict(tf.tensor3d([arr]));
+  let statesValue = encoderModel.predict(encorderInput.toTensor());
   // Generate empty target sequence of length 1.
   let targetSeq = tf.buffer([1, 1, indicesSize]);
   // Populate the first character of the target sequence with the start
   // character.
-  targetSeq.set(1, 0, 0, data.encode(-1));
+  targetSeq.set(1, 0, 0, data.encode(p));
+  console.log("input",targetSeq.toTensor().arraySync());
 
   // Sample loop for a batch of sequences.
   // (to simplify, here we assume that a batch of size 1).
@@ -89,10 +106,12 @@ async function generatePath(model, data, reqBody) {
   let decodedSentence = [];
   while (!stopCondition) {
     const predictOutputs =
-        decoderModel.predict([targetSeq.toTensor()].concat(statesValue));
+      decoderModel.predict([targetSeq.toTensor()].concat(statesValue));
     const outputTokens = predictOutputs[0];
     const h = predictOutputs[1];
     const c = predictOutputs[2];
+
+  console.log("output",outputTokens.arraySync());
 
     // Sample a token.
     // We know that outputTokens.shape is [1, 1, n], so no need for slicing.
@@ -101,10 +120,11 @@ async function generatePath(model, data, reqBody) {
     //const sampledTokenIndex = sample(tf.squeeze(outputTokens), 0.8);
     const sampledChar = data.decode(sampledTokenIndex);
     decodedSentence.push(sampledChar);
-    console.log(sampledChar);
+    //console.log(sampledChar);
     // Exit condition: either hit max length or find stop character.
     if (sampledChar === -2 ||
-        decodedSentence.length > data.maxLength) {
+      decodedSentence.length > data.maxLength||
+      decodedSentence.length > l) {
       stopCondition = true;
     }
 
@@ -115,7 +135,7 @@ async function generatePath(model, data, reqBody) {
     // Update states.
     statesValue = [h, c];
   }
-return decodedSentence;
+  return decodedSentence;
   /*
   let path = p.map(p => parseInt(p));
   const maxLength = model.inputs[1].shape[1];
@@ -171,7 +191,7 @@ function prepareEncoderModel(model) {
   const stateC = model.layers[2].output[2];
   const encoderStates = [stateH, stateC];
 
-  return tf.model({inputs: encoderInputs, outputs: encoderStates});
+  return tf.model({ inputs: encoderInputs, outputs: encoderStates });
 }
 
 function prepareDecoderModel(model) {
@@ -180,15 +200,15 @@ function prepareDecoderModel(model) {
   const latentDim = stateH.shape[stateH.shape.length - 1];
   console.log('latentDim = ' + latentDim);
   const decoderStateInputH =
-      tf.input({shape: [latentDim], name: 'decoder_state_input_h'});
+    tf.input({ shape: [latentDim], name: 'decoder_state_input_h' });
   const decoderStateInputC =
-      tf.input({shape: [latentDim], name: 'decoder_state_input_c'});
+    tf.input({ shape: [latentDim], name: 'decoder_state_input_c' });
   const decoderStateInputs = [decoderStateInputH, decoderStateInputC];
 
   const decoderLSTM = model.layers[3];
   const decoderInputs = decoderLSTM.input[0];
   const applyOutputs =
-      decoderLSTM.apply(decoderInputs, {initialState: decoderStateInputs});
+    decoderLSTM.apply(decoderInputs, { initialState: decoderStateInputs });
   let decoderOutputs = applyOutputs[0];
   const decoderStateH = applyOutputs[1];
   const decoderStateC = applyOutputs[2];
