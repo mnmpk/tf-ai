@@ -61,9 +61,8 @@
         //var startPath = [[5, 2], [6, 2], [7, 2], [7, 3], [7, 4]];
         //var startPath = [[4, 2], [5, 2], [6, 2], [7, 2], [8, 2]];
         //var startPath = [[4, 1], [4, 2], [5, 2], [6, 2], [7, 2]];
-        var startPath = [[0, 0], [1, 0]];
+        var startPath = [];
         var ctx;
-        var x = 0, y = 0;
         $(document).ready(function () {
             var temp = [];
             newRoute1.forEach((v, i) => {
@@ -91,14 +90,19 @@
                 const tempX = Math.floor(e.offsetX / 10);
                 const tempY = Math.floor(e.offsetY / 10);
                 if (map[tempY][tempX]) {
-                    x = tempX;
-                    y = tempY;
+                    if(startPath.length && distance(startPath[startPath.length-1], [tempX, tempY])>1){
+                        startPath = [];
+                    }              
+                    startPath.push([tempX, tempY]);
                     clearMap();
                     drawMap();
                 }
             });
 
         });
+        function distance(lastPoint, newPoint){
+            return Math.hypot(newPoint[0] - lastPoint[0], newPoint[1] - lastPoint[1])
+        };
         function clearMap() {
             ctx.clearRect(0, 0, $("#map")[0].width, $("#map")[0].height);
         }
@@ -115,7 +119,9 @@
             });
             ctx.fillStyle = "#009900";
             ctx.globalAlpha = 0.5;
-            ctx.fillRect(x * 10, y * 10, 10, 10);
+            startPath.forEach((p, i) => {
+                ctx.fillRect(p[0] * 10, p[1] * 10, 10, 10);
+            });
         }
         function s() {
             try {
@@ -123,18 +129,14 @@
                     type: "POST",
                     url: "/s2s",
                     data: {
-                        //p: startPath.map(p => (p[1] * 10) + p[0]),
-                        p: (y * 10) + x,
+                        p: startPath.map(p => (p[1] * 10) + p[0]),
+                        //p: (y * 10) + x,
                         l: $('#length').val(),
                         desc: $('#prompt').val(),
                     },
                     success: function (res) {
                         clearMap();
                         drawMap();
-
-                        /*startPath.forEach((p, i) => {
-                            ctx.fillRect(p[0] * 10, p[1] * 10, 10, 10);
-                        });*/
                         ctx.globalAlpha = 0.8;
                         res.forEach((p, i) => {
                             ctx.fillRect(p[0] * 10, p[1] * 10, 10, 10);

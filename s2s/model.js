@@ -1,12 +1,12 @@
 const tf = require('@tensorflow/tfjs-node');
 const { Data } = require('./data');
 
-function createModel(maxTextSize, embeddingSize, latentDim, pointSize) {
+function createModel(vocabSize, latentDim, pointSize) {
   const embeddingInput = tf.input({
-    shape: [null, embeddingSize],
+    shape: [null, vocabSize],
     name: 'embeddingInput',
   });
-  //const embedding = tf.layers.embedding({ inputDim: embeddingSize, outputDim: 32 }).apply(embeddingInput);
+  //const embedding = tf.layers.embedding({ inputDim: vocabSize, outputDim: 32 }).apply(embeddingInput);
   //const flatten = tf.layers.flatten().apply(embedding);
   //const dense = tf.layers.dense({ units: 1, activation: 'sigmoid' }).apply(embedding);
   const encoder = tf.layers.lstm({
@@ -78,8 +78,8 @@ async function generatePath(model, data, reqBody) {
   const decoderModel = prepareDecoderModel(model);
 
   const { l, p, d, v, desc } = reqBody;
-  const Segmenter = require('node-analyzer');
-  const segmenter = new Segmenter();
+  //const Segmenter = require('node-analyzer');
+  //const segmenter = new Segmenter();
   //let arr = new Array(data.textMaxSize).fill(new Array(parseInt(data.w2vModel.size)).fill(0));
   //arr = Object.assign(arr, data.w2vModel.getVectors(segmenter.analyze(desc) || new Array(parseInt(data.w2vModel.size)).fill(0)).map(v => v.values));
   //const words = segmenter.analyze(desc).split(" ");
@@ -88,16 +88,20 @@ async function generatePath(model, data, reqBody) {
   words.forEach((w, i) => {
     const index = data.vocab.indexOf(w.toLowerCase());
     console.log(w, index);
-    encorderInput.set(1, 0, i, index>=0?index:0);
+    encorderInput.set(1, 0, i, index >= 0 ? index : 0);
   });
-  console.log("encorderInput",encorderInput.toTensor().dataSync());
+  console.log("encorderInput", encorderInput.toTensor().dataSync());
   // Encode the inputs state vectors.
   let statesValue = encoderModel.predict(encorderInput.toTensor());
   // Generate empty target sequence of length 1.
-  let targetSeq = tf.buffer([1, 1, indicesSize]);
+  let targetSeq = tf.buffer([1, p.length, indicesSize]);
   // Populate the first character of the target sequence with the start
   // character.
-  targetSeq.set(1, 0, 0, data.encode(parseInt(p)));
+  let lastIndex = 0;
+  p.forEach((point, i) => {
+    lastIndex = data.encode(parseInt(point));
+    targetSeq.set(1, 0, i, lastIndex);
+  });
   console.log("input", targetSeq.toTensor().arraySync());
 
   // Sample loop for a batch of sequences.
@@ -111,29 +115,33 @@ async function generatePath(model, data, reqBody) {
     const h = predictOutputs[1];
     const c = predictOutputs[2];
 
-  console.log("output",outputTokens.arraySync());
-
+    //console.log("output", outputTokens.arraySync());
     // Sample a token.
     // We know that outputTokens.shape is [1, 1, n], so no need for slicing.
-    const logits = outputTokens.reshape([outputTokens.shape[2]]);
-    const sampledTokenIndex = logits.argMax().dataSync()[0];
-    //const sampledTokenIndex = sample(tf.squeeze(outputTokens), 0.8);
-    const sampledChar = data.decode(sampledTokenIndex);
-    decodedSentence.push(sampledChar);
-    //console.log(sampledChar);
-    // Exit condition: either hit max length or find stop character.
-    if (sampledChar === -1 ||
-      decodedSentence.length > data.maxLength||
-      decodedSentence.length > l) {
-      stopCondition = true;
-    }
 
+    const logits = outputTokens.reshape([outputTokens.shape[1], outputTokens.shape[2]]);
+    const results = logits.unstack();
     // Update the target sequence (of length 1).
-    targetSeq = tf.buffer([1, 1, indicesSize]);
-    targetSeq.set(1, 0, 0, sampledTokenIndex);
+    targetSeq = tf.buffer([1, p.length, indicesSize]);
+    results.forEach((r, i) => {
+      const sampledTokenIndex = r.argMax().dataSync()[0];
+      //const sampledTokenIndex = sample(tf.squeeze(outputTokens), 0.3);
+      const sampledChar = data.decode(sampledTokenIndex);
+      decodedSentence.push(sampledChar);
+      //console.log(sampledChar);
+      // Exit condition: either hit max length or find stop character.
+      if (sampledChar === -1 ||
+        decodedSentence.length > data.maxLength ||
+        decodedSentence.length > l) {
+        stopCondition = true;
+      }
+      targetSeq.set(1, 0, i, sampledTokenIndex);
+      lastIndex = sampledTokenIndex;
+      // Update states.
+      statesValue = [h, c];
+    });
 
-    // Update states.
-    statesValue = [h, c];
+
   }
   return decodedSentence;
   /*
