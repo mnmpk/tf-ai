@@ -133,7 +133,7 @@ async function generatePath(model, data, reqBody) {
     targetSeq.set(1, 0, 0, sampledTokenIndex);
 
     // Update states.
-    statesValue = [h, c];
+    //statesValue = [h, c];
   }
   return decodedSentence;
   /*
