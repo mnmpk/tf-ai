@@ -1,7 +1,6 @@
 const tf = require('@tensorflow/tfjs-node');
-const { Data } = require('./data');
 
-function createModel(maxTextSize, embeddingSize, latentDim, pointSize) {
+function createModel(embeddingSize, latentDim, pointSize) {
   const embeddingInput = tf.input({
     shape: [null, embeddingSize],
     name: 'embeddingInput',
@@ -78,12 +77,19 @@ async function generatePath(model, data, reqBody) {
   const decoderModel = prepareDecoderModel(model);
 
   const { l, p, d, v, desc } = reqBody;
-  const Segmenter = require('node-analyzer');
-  const segmenter = new Segmenter();
+  //const Segmenter = require('node-analyzer');
+  //const segmenter = new Segmenter();
   //let arr = new Array(data.textMaxSize).fill(new Array(parseInt(data.w2vModel.size)).fill(0));
   //arr = Object.assign(arr, data.w2vModel.getVectors(segmenter.analyze(desc) || new Array(parseInt(data.w2vModel.size)).fill(0)).map(v => v.values));
   //const words = segmenter.analyze(desc).split(" ");
-  const words = desc.split(" ");
+  //const words = desc.split(" ");
+  
+  let words = [];
+  data.vocab.forEach(v=>{
+      if(desc.indexOf(v)>=0)
+          words.push(v);
+  });
+
   let encorderInput = new tf.TensorBuffer([1, data.textMaxSize, data.vocab.length]);
   words.forEach((w, i) => {
     const index = data.vocab.indexOf(w.toLowerCase());
