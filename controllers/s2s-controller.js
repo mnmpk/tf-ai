@@ -5,8 +5,8 @@ const modelPath = './s2s/model';
 const { createModel, compileModel, fitModel, generatePath } = require('../s2s/model');
 const { trails, Data } = require('../s2s/data');
 
-const rememberSize = 3;
-const textMaxLength = 10;
+const rememberSize = 2;
+const textMaxLength = 100;
 const data = new Data(trails, textMaxLength, rememberSize);
 
 const s2sPredict = (async (req, res) => {
