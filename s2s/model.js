@@ -1,4 +1,5 @@
 const tf = require('@tensorflow/tfjs-node');
+const { Data } = require('./data');
 
 function createModel(vocabSize, latentDim, pointSize) {
   const embeddingInput = tf.input({
@@ -83,11 +84,11 @@ async function generatePath(model, data, reqBody) {
   //arr = Object.assign(arr, data.w2vModel.getVectors(segmenter.analyze(desc) || new Array(parseInt(data.w2vModel.size)).fill(0)).map(v => v.values));
   //const words = segmenter.analyze(desc).split(" ");
   //const words = desc.split(" ");
-  
+
   let words = [];
-  data.vocab.forEach(v=>{
-      if(desc.indexOf(v)>=0)
-          words.push(v);
+  data.vocab.forEach(v => {
+    if (desc.indexOf(v) >= 0)
+      words.push(v);
   });
 
   let encorderInput = new tf.TensorBuffer([1, data.textMaxSize, data.vocab.length]);
@@ -96,7 +97,7 @@ async function generatePath(model, data, reqBody) {
     console.log(w, index);
     encorderInput.set(1, 0, i, index >= 0 ? index : 0);
   });
-  console.log("encorderInput", encorderInput.toTensor().dataSync());
+  //console.log("encorderInput", encorderInput.toTensor().dataSync());
   // Encode the inputs state vectors.
   let statesValue = encoderModel.predict(encorderInput.toTensor());
   // Generate empty target sequence of length 1.
@@ -107,8 +108,9 @@ async function generatePath(model, data, reqBody) {
   p.forEach((point, i) => {
     lastIndex = data.encode(parseInt(point));
     targetSeq.set(1, 0, i, lastIndex);
+    console.log("input", lastIndex, Data.conv2Coordinate(parseInt(point)));
   });
-  console.log("input", targetSeq.toTensor().arraySync());
+  //console.log("input", targetSeq.toTensor().arraySync());
 
   // Sample loop for a batch of sequences.
   // (to simplify, here we assume that a batch of size 1).
@@ -124,8 +126,33 @@ async function generatePath(model, data, reqBody) {
     //console.log("output", outputTokens.arraySync());
     // Sample a token.
     // We know that outputTokens.shape is [1, 1, n], so no need for slicing.
-
     const logits = outputTokens.reshape([outputTokens.shape[1], outputTokens.shape[2]]);
+    const results = logits.unstack();
+    const sampledTokenIndex = results[results.length-1].argMax().dataSync()[0];
+    //const logits = outputTokens.reshape([outputTokens.shape[1]]);
+    //const sampledTokenIndex = logits.argMax().dataSync()[0];
+    const sampledChar = data.decode(sampledTokenIndex);
+    decodedSentence.push(sampledChar);
+    console.log("output", sampledChar, Data.conv2Coordinate(sampledChar));
+    if (sampledChar === -1 ||
+      decodedSentence.length > data.maxLength ||
+      decodedSentence.length > l) {
+      stopCondition = true;
+    }
+    newTargetSeq = tf.buffer([1, p.length, indicesSize]);
+    for (var i = 1; i < p.length; i++) {
+      let index = 0;
+      for (var j = 0; j < indicesSize; j++) {
+        const temp = targetSeq.get(0, i, j);
+        if (temp == 1)
+          index = j;
+      }
+      newTargetSeq.set(1, 0, i - 1, index);
+    }
+    newTargetSeq.set(1, 0, p.length - 1, sampledTokenIndex);
+    targetSeq = newTargetSeq;
+    lastIndex = sampledTokenIndex;
+    /*const logits = outputTokens.reshape([outputTokens.shape[1], outputTokens.shape[2]]);
     const results = logits.unstack();
     // Update the target sequence (of length 1).
     targetSeq = tf.buffer([1, p.length, indicesSize]);
@@ -134,7 +161,7 @@ async function generatePath(model, data, reqBody) {
       //const sampledTokenIndex = sample(tf.squeeze(outputTokens), 0.3);
       const sampledChar = data.decode(sampledTokenIndex);
       decodedSentence.push(sampledChar);
-      //console.log(sampledChar);
+      console.log("output", Data.conv2Coordinate(sampledChar));
       // Exit condition: either hit max length or find stop character.
       if (sampledChar === -1 ||
         decodedSentence.length > data.maxLength ||
@@ -145,7 +172,7 @@ async function generatePath(model, data, reqBody) {
       lastIndex = sampledTokenIndex;
       // Update states.
       //statesValue = [h, c];
-    });
+    });*/
 
 
     // Update states.

@@ -106,7 +106,7 @@ class Data {
             this.trails.length * examplePerRoute, this.textMaxSize, this.vocab.length]);
         let decorderInput = new tf.TensorBuffer([
             this.trails.length * examplePerRoute, this.maxLength/*this.rememberSize*/, this.pointSize]);
-        let target = new tf.TensorBuffer([this.trails.length * examplePerRoute, this.maxLength/*this.rememberSize*/, this.pointSize]);
+        let target = new tf.TensorBuffer([this.trails.length * examplePerRoute, this.maxLength /*this.rememberSize*/, this.pointSize]);
 
         this.trails.forEach((trail, ti) => {
             const targetRoute = trail.route.concat([[-1]]);
@@ -143,7 +143,7 @@ class Data {
 
             let randomList = [];
             for (let i = 0;
-                i < trail.route.length;
+                i < targetRoute.length -1;//- this.rememberSize;
                 i++) {
                 randomList.push(i);
             }
@@ -165,11 +165,14 @@ class Data {
                         target.set(1, i, j - 1, this.encode(Data.conv2Value(targetRoute[routePointIndex])));
                     }
                 }
+                /*const targetPointIndex = routeStartIndex + this.rememberSize;
+                console.log("i:" + i, "target point index:" + targetPointIndex, "target point:" + targetRoute[targetPointIndex]);
+                target.set(1, i, this.encode(Data.conv2Value(targetRoute[targetPointIndex])));*/
             }
         });
-        console.log("encorderInput", encorderInput.toTensor().arraySync());
-        console.log("decorderInput", decorderInput.toTensor().arraySync());
-        console.log("target", target.toTensor().arraySync());
+        //console.log("encorderInput", encorderInput.toTensor().arraySync());
+        //console.log("decorderInput", decorderInput.toTensor().arraySync());
+        //console.log("target", target.toTensor().arraySync());
         return { input: [encorderInput.toTensor(), decorderInput.toTensor()], target: target.toTensor() };
     }
 }
